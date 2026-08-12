@@ -212,7 +212,7 @@ CONTENT = (CONTENT
            .replace("__SIMHS__", f'<img src="{png_uri("sim_heatsink.png")}" alt="Heatsink temperature and velocity fields">')
            .replace("__SIMCP__", f'<img src="{png_uri("sim_coldplate.png")}" alt="Cold plate temperature and velocity fields">')
            .replace("__GTPRED__", f'<img src="{png_uri("gtvspred.png")}" alt="Ground truth vs Kuber prediction">')
-           .replace("__ARCH__", svg_inline("fig_architecture.svg"))
+           .replace("__ARCH__", '<img src="' + png_uri("architecture.png") + '" alt="SurfaceGeoTransolver architecture">')
            .replace("__LEADERBOARD__", svg_inline("fig_leaderboard.svg"))
            .replace("__INDIST__", svg_inline("fig_indist_vs_ood.svg"))
            .replace("__STABILITY__", svg_inline("fig_stability.svg"))

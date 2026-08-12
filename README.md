@@ -32,7 +32,7 @@ The full stack, from physics-data generation to a deployable, geometry-general s
 
 *On the roadmap:* CAD connectors (STEP/STL/mesh ingest), calibrated Bayesian uncertainty, and agentic geometry optimization; more CHT domains and cold-plate topologies.
 
-![SurfaceGeoTransolver architecture — surface encoder, local kNN cross-attention, concatenated embedding, GeoTransolver core](assets/fig_architecture.svg)
+![SurfaceGeoTransolver architecture — real geometry input, network pipeline, predicted field](assets/sim/architecture.png)
 
 ## Table of contents
 
