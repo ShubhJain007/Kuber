@@ -18,13 +18,24 @@ the predicted field beside the CFD ground truth. This is the same app as
 
 ## One-time setup
 
-The image is code-only; the **model + corpus** live in your own HF repo (kept out of the image so
-git stays small). Create an HF **Dataset** repo (e.g. `you/kuber-assets`) containing:
+The image is code-only; the **model + cases** live in your own HF **Dataset** repo (kept out of the
+image so git stays small). The bundle has this layout — assemble it with the helper (copies only the
+~2.3k `.npz` the split references, not the full 1.4 GB corpus):
 
 ```
-multigeo.pt      # the trained checkpoint (outputs/multigeo.pt)
-cases/           # the .npz corpus (from demo_data/multigeo_corpus) — needed for correct normalizers
-splits.json      # the split file (demo_data/multigeo_splits_demo.json)
+multigeo.pt      # the trained checkpoint
+splits.json      # the split file
+cases/<id>.npz   # only the cases the split names (train cases fit the normalizers; test cases are the presets)
+```
+
+```bash
+# assemble locally, then upload to your dataset repo (needs: huggingface-cli login)
+python prepare_assets.py \
+    --ckpt   ~/cfd_thermal_mvp/outputs/multigeo.pt \
+    --corpus ~/cfd_thermal_mvp/demo_data/multigeo_corpus \
+    --splits ~/cfd_thermal_mvp/demo_data/multigeo_splits_demo.json \
+    --out    ~/kuber-assets \
+    --push   <you>/kuber-assets
 ```
 
 Then, in the Space **Settings → Variables and secrets**, set:
