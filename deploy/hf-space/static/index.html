@@ -638,7 +638,7 @@ const AVC=['#ff6b35','#4bd6e0','#5ac47f','#c98af6','#f6c945'];
 let WS=JSON.parse(localStorage.getItem('kuber_ws')||'null');
 function seedWS(){const cp=(cases.find(c=>c.device==='coldplate')||{}).index, hs=(cases.find(c=>c.device==='heatsink')||{}).index;
   const g=[];if(hs!=null)g.push({kind:'preset',caseIndex:hs});if(cp!=null)g.push({kind:'preset',caseIndex:cp});
-  WS={v:2,activeProject:0,projects:[{name:'Electronics Cooling — Multi-geometry',geoms:g,updated:Date.now()},{name:'eVTOL Power Electronics',geoms:[],updated:Date.now()-6*3600e3}],team:[{name:'Shubh Jain',email:'sjain@kuber.ai',role:'Owner'},{name:'Alex Rivera',email:'alex@kuber.ai',role:'Engineer'}]};saveWS();}
+  WS={v:3,activeProject:0,projects:[{name:'Electronics Cooling — Multi-geometry',geoms:g,updated:Date.now()},{name:'eVTOL Power Electronics',geoms:[],updated:Date.now()-6*3600e3}],team:[{name:'You',email:'you@kuber.ai',role:'Owner'},{name:'Alex Rivera',email:'alex@kuber.ai',role:'Engineer'}]};saveWS();}
 function saveWS(){try{localStorage.setItem('kuber_ws',JSON.stringify(WS,(k,v)=>k==='_buf'?undefined:v));}catch(e){}}
 /* seeded in init() after cases load (needs device info) */
 function proj(){return WS.projects[WS.activeProject];}
@@ -726,7 +726,7 @@ function makeDraggable(el){el.style.cursor='grab';el.style.touchAction='none';le
 async function init(){document.querySelectorAll('.logoMark').forEach(e=>e.innerHTML=LOGO_SVG);
   ['cards','vswitch','promptBar','cadnote','xbadge','cmpAcc'].forEach(id=>{const e=document.getElementById(id);if(e)makeDraggable(e);});
   document.querySelectorAll('.cbar-wrap').forEach(makeDraggable);
-  resize();cases=await (await fetch('/api/cases')).json();if(!WS||WS.v!==2)seedWS();renderScen();WS.projects.forEach((p,k)=>{if(!p.updated)p.updated=Date.now()-k*7200000;});saveWS();renderProjects();showPage('projects');}
+  resize();cases=await (await fetch('/api/cases')).json();if(!WS||WS.v!==3)seedWS();renderScen();WS.projects.forEach((p,k)=>{if(!p.updated)p.updated=Date.now()-k*7200000;});saveWS();renderProjects();showPage('projects');}
 init();
 </script>
 </body>
