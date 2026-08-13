@@ -122,6 +122,41 @@ regression; results below use the one-shot model. Geometry may alternatively be 
 (directional) signed-distance field for parametric families, but the surface-encoder configuration is
 the one we report because it is the only one applicable to arbitrary CAD.
 
+Formally, write the surface as points $p_i\in\mathbb{R}^3$ with unit normals $n_i$ ($i{=}1{\dots}N_s$),
+the query cloud as $x_j$ ($j{=}1{\dots}N$), and the conditioning as $c\in\mathbb{R}^C$. The surface
+encoder embeds each element and applies an $L_s$-layer pre-norm Transformer with multi-head
+self-attention (MHSA):
+\begin{equation}
+h_i^0=\mathrm{MLP}([p_i;n_i]),\ \ H\!\leftarrow\!H+\mathrm{MHSA}(\mathrm{LN}\,H),\ \ H\!\leftarrow\!H+\mathrm{FFN}(\mathrm{LN}\,H),
+\end{equation}
+with $\mathrm{MHSA}(Q,K,V)=\mathrm{softmax}(QK^\top/\sqrt{d})V$, yielding geometry tokens $z_i=H_i^{(L_s)}$.
+For each query $x_j$, let $\mathcal{N}_k(j)$ be its $k$ nearest surface points; with relative positions
+$r_{ji}=x_j-p_i$, learned bias $b_{ji}=\mathrm{MLP}_r(r_{ji})$, and query $q_j=\mathrm{MLP}_q(x_j)$, the
+local geometry descriptor is
+\begin{equation}
+\alpha_{ji}=\operatorname*{softmax}_{i\in\mathcal{N}_k(j)}\frac{q_j^\top(W_K z_i+b_{ji})}{\sqrt{d_h}},\qquad
+g_j=W_O\!\!\sum_{i\in\mathcal{N}_k(j)}\!\!\alpha_{ji}\,(W_V z_i+b_{ji}),
+\end{equation}
+(multi-head; heads omitted). Locality and relative positions make $g_j$ compositional---a 10-fin
+heatsink is locally ``more of the same'' fin-gap patches seen at 5--8 fins. The per-node embedding
+$e_j=[g_j;c]$ is lifted, $u_j^0=\mathrm{MLP}([e_j;x_j])$, and passed through $L_c$ \emph{physics-attention}
+blocks. Each block softly assigns the $N$ nodes to $M$ learned slices, aggregates them into slice tokens,
+attends among the tokens, and scatters back:
+\begin{equation}
+w_{jm}=\operatorname*{softmax}_m(u_j^\top\theta_m),\quad
+t_m=\frac{\sum_j w_{jm}u_j}{\sum_j w_{jm}},\quad
+u_j\leftarrow u_j+\sum_m w_{jm}\,\mathrm{MHSA}(T)_m,
+\end{equation}
+followed by a multiscale ball-query aggregation at radii $\{0.05,0.25\}$ and an FFN, each with a residual
+and LN; the slice mechanism costs $O(NM)$ with $M\ll N$ instead of the $O(N^2)$ of dense attention. A
+linear head gives the $z$-normalized field, trained by mean-squared error and de-normalized to physical
+units:
+\begin{equation}
+\hat{y}_j=W_o u_j^{(L_c)}\in\mathbb{R}^5,\quad
+\mathcal{L}(\theta)=\frac{1}{BN}\sum_{b,j}\lVert\hat{y}_{bj}-y_{bj}\rVert^2,\quad
+\text{field}=\hat{y}_j\odot\sigma_y+\mu_y.
+\end{equation}
+
 \begin{figure*}[t]
 \centering
 \includegraphics[width=0.96\textwidth]{architecture.png}
@@ -163,8 +198,14 @@ normalizers are fit on the source training split only. \textit{Metrics.} We repo
 physical units and normalized RMSE (nRMSE); the benchmark's primary selector is mean nRMSE across the
 five fields. We additionally report near-wall $T$-RMSE and edge gradient ratios (Sec.~\ref{sec:stab}).
 No baseline uses unsupervised domain adaptation (UDA) in our runs; the published baselines do, which
-is their best case. \textit{Training.} Adam~\cite{adam} with a warmup--stable--decay schedule,
-$z$-scored targets, per-case normalized frame. Baseline numbers are quoted from the SIMSHIFT paper.
+is their best case. \textit{Training.} Adam~\cite{adam} at learning rate $10^{-3}$, batch size 4 cases
+(16{,}384 query nodes each), with a warmup--stable--decay schedule: a 5-epoch linear warmup, a stable
+phase held until the validation mean-nRMSE plateaus (patience 25 epochs), then a 30-epoch cosine decay
+to $10^{-6}$; the best-validation checkpoint is kept. Targets are $z$-scored per channel and coordinates
+mapped to a per-case unit frame. The encoder uses $d_s{=}128$ (2 layers, 4 heads); the descriptor
+$d_g{=}64$ with $k{=}16$; the core is 256-wide, 12 layers, 8 heads, $M{=}64$ slices, ball-query radii
+$\{0.05,0.25\}$ with $\{8,32\}$ neighbors ($\approx$14.3\,M parameters). Baseline numbers are quoted from
+the SIMSHIFT paper.
 
 \section{Results}
 \subsection{SIMSHIFT Heatsink Benchmark}
@@ -283,6 +324,31 @@ geometries), a sub-second forward pass is up to four orders of magnitude ($\appr
 faster; we report the inference figure as an estimate pending exact per-GPU timing. On fidelity, three prism boundary
 layers recover the near-wall hot spot to within 0.1\,K of a fine mesh (378.8 vs.\ 378.9\,K) at
 $\approx$2.7$\times$ fewer cells.
+
+\subsection{Ablations}
+Table~\ref{tab:abl} isolates the main design choices on the SIMSHIFT medium split. The surface encoder
+gives the best temperature and, unlike the analytic SDF, applies to arbitrary CAD; the SDF variant is
+data-efficient (lower averaged nRMSE, 0.593, and velocity, 0.038\,m/s) but presupposes an analytic shape.
+Full 12-scalar physics conditioning improves temperature by 0.8\,K over wall-temperature-only, confirming
+the fluid-property and boundary-condition scalars carry signal. Corpus pretraining lowers the
+reduced-conditioning model from 12.94 to 12.38\,K (the pretraining A/B above); both the full-conditioning
+and pretrained models pass UPT's 12.41\,K. Separately, feeding the surface as a per-node descriptor (used
+here) generalized better than AB-UPT-style per-block cross-attention on the raw surface cloud at this data
+scale.
+
+\begin{table}[t]\renewcommand{\arraystretch}{1.2}
+\caption{Ablations on SIMSHIFT Medium (OOD). Temperature RMSE (K); Lower Is Better.}
+\label{tab:abl}\centering
+\begin{tabular}{@{}llc@{}}\toprule
+Factor & Setting & Temp RMSE (K) \\ \midrule
+geometry input & surface encoder (ours) & \textbf{12.14} \\
+ & analytic SDF & 13.07 \\
+conditioning & full, 12 scalars (ours) & \textbf{12.14} \\
+ & reduced, wall-$T$ only & 12.94 \\
+pretraining & reduced, from scratch & 12.94 \\
+(reduced cond.) & reduced, corpus-pretrained & \textbf{12.38} \\ \bottomrule
+\end{tabular}
+\end{table}
 
 \section{Discussion and Limitations}
 We state the boundaries plainly. The corpus is air-dominated (tens of oil/glycol cases), so the model

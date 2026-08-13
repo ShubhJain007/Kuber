@@ -149,6 +149,40 @@ regression; results below use the one-shot model. Geometry may alternatively be 
 (directional) signed-distance field for parametric families, but the surface-encoder configuration is
 the one we report because it is the only one applicable to arbitrary CAD.</p>
 
+<p>Formally, write the surface as points <i>p<sub>i</sub></i>&thinsp;&isin;&thinsp;&#8477;<sup>3</sup> with unit
+normals <i>n<sub>i</sub></i> (<i>i</i>&thinsp;=&thinsp;1&hellip;N<sub>s</sub>), the query cloud as
+<i>x<sub>j</sub></i> (<i>j</i>&thinsp;=&thinsp;1&hellip;N), and the conditioning as
+<i>c</i>&thinsp;&isin;&thinsp;&#8477;<sup>C</sup>. The <i>surface encoder</i> embeds each element and applies an
+<i>L<sub>s</sub></i>-layer pre-norm Transformer with multi-head self-attention (MHSA):</p>
+<p class="eq"><i>h<sub>i</sub></i><sup>0</sup>&thinsp;=&thinsp;MLP([<i>p<sub>i</sub></i>;&thinsp;<i>n<sub>i</sub></i>]),&emsp;
+<i>H</i>&thinsp;&larr;&thinsp;<i>H</i>&thinsp;+&thinsp;MHSA(LN&thinsp;<i>H</i>),&emsp;
+<i>H</i>&thinsp;&larr;&thinsp;<i>H</i>&thinsp;+&thinsp;FFN(LN&thinsp;<i>H</i>),&emsp;
+MHSA(<i>Q,K,V</i>)&thinsp;=&thinsp;softmax(<i>QK</i><sup>&#8868;</sup>/&radic;<i>d</i>)<i>V</i>,<span class="num">(2)</span></p>
+<p>yielding geometry tokens <i>z<sub>i</sub></i>&thinsp;=&thinsp;<i>H<sub>i</sub></i><sup>(L<sub>s</sub>)</sup>. For each
+query <i>x<sub>j</sub></i>, let <i>N<sub>k</sub></i>(<i>j</i>) be its <i>k</i> nearest surface points; with relative
+positions <i>r<sub>ji</sub></i>&thinsp;=&thinsp;<i>x<sub>j</sub></i>&minus;<i>p<sub>i</sub></i>, learned bias
+<i>b<sub>ji</sub></i>&thinsp;=&thinsp;MLP<sub>r</sub>(<i>r<sub>ji</sub></i>), and query
+<i>q<sub>j</sub></i>&thinsp;=&thinsp;MLP<sub>q</sub>(<i>x<sub>j</sub></i>), the <i>local geometry descriptor</i> is</p>
+<p class="eq"><i>&alpha;<sub>ji</sub></i>&thinsp;=&thinsp;softmax<sub><i>i</i>&thinsp;&isin;&thinsp;<i>N<sub>k</sub></i>(<i>j</i>)</sub>
+&#8202;(<i>q<sub>j</sub></i><sup>&#8868;</sup>(<i>W<sub>K</sub>z<sub>i</sub></i>&thinsp;+&thinsp;<i>b<sub>ji</sub></i>)&thinsp;/&thinsp;&radic;<i>d<sub>h</sub></i>),&emsp;
+<i>g<sub>j</sub></i>&thinsp;=&thinsp;<i>W<sub>O</sub></i>&#8201;&sum;<sub><i>i</i></sub>&#8201;<i>&alpha;<sub>ji</sub></i>(<i>W<sub>V</sub>z<sub>i</sub></i>&thinsp;+&thinsp;<i>b<sub>ji</sub></i>)<span class="num">(3)</span></p>
+<p>(multi-head; heads omitted). Locality and relative positions make <i>g<sub>j</sub></i> compositional &mdash; a
+10-fin heatsink is locally &ldquo;more of the same&rdquo; fin-gap patches seen at 5&ndash;8 fins. The per-node
+embedding <i>e<sub>j</sub></i>&thinsp;=&thinsp;[<i>g<sub>j</sub></i>;&thinsp;<i>c</i>] is lifted,
+<i>u<sub>j</sub></i><sup>0</sup>&thinsp;=&thinsp;MLP([<i>e<sub>j</sub></i>;&thinsp;<i>x<sub>j</sub></i>]), and passed through
+<i>L<sub>c</sub></i> <i>physics-attention</i> blocks. Each block softly assigns the <i>N</i> nodes to <i>M</i> learned
+slices, aggregates them into slice tokens, attends among the <i>M</i> tokens, and scatters back:</p>
+<p class="eq"><i>w<sub>jm</sub></i>&thinsp;=&thinsp;softmax<sub><i>m</i></sub>(<i>u<sub>j</sub></i><sup>&#8868;</sup><i>&theta;<sub>m</sub></i>),&emsp;
+<i>t<sub>m</sub></i>&thinsp;=&thinsp;(&sum;<sub><i>j</i></sub><i>w<sub>jm</sub>u<sub>j</sub></i>)&thinsp;/&thinsp;(&sum;<sub><i>j</i></sub><i>w<sub>jm</sub></i>),&emsp;
+<i>u<sub>j</sub></i>&thinsp;&larr;&thinsp;<i>u<sub>j</sub></i>&thinsp;+&thinsp;&sum;<sub><i>m</i></sub><i>w<sub>jm</sub></i>&#8201;MHSA(<i>T</i>)<sub><i>m</i></sub><span class="num">(4)</span></p>
+<p>followed by a multiscale ball-query aggregation of neighbors at radii {0.05,&thinsp;0.25} and an FFN, each with a
+residual and LN. The slice mechanism costs <i>O</i>(<i>NM</i>) with <i>M</i>&thinsp;&#8810;&thinsp;<i>N</i> instead of the
+<i>O</i>(<i>N</i><sup>2</sup>) of dense attention. A linear head gives the <i>z</i>-normalized field, trained by
+mean-squared error and de-normalized to physical units:</p>
+<p class="eq"><i>&#375;<sub>j</sub></i>&thinsp;=&thinsp;<i>W<sub>o</sub>u<sub>j</sub></i><sup>(L<sub>c</sub>)</sup>&thinsp;&isin;&thinsp;&#8477;<sup>5</sup>,&emsp;
+&#8466;(<i>&theta;</i>)&thinsp;=&thinsp;(1/<i>BN</i>)&#8201;&sum;<sub><i>b,j</i></sub>&#8201;&#8214;<i>&#375;<sub>bj</sub></i>&minus;<i>y<sub>bj</sub></i>&#8214;<sup>2</sup>,&emsp;
+field&thinsp;=&thinsp;<i>&#375;<sub>j</sub></i>&#8857;<i>&sigma;<sub>y</sub></i>&thinsp;+&thinsp;<i>&mu;<sub>y</sub></i>.<span class="num">(5)</span></p>
+
 <figure class="wide">
   <img src="../assets/sim/architecture.png" alt="SurfaceGeoTransolver architecture">
   <figcaption>Fig.&nbsp;2.&ensp;SurfaceGeoTransolver. Three inputs &mdash; the boundary surface point
@@ -187,8 +221,13 @@ normalizers are fit on the source training split only. <i>Metrics.</i> We report
 physical units and normalized RMSE (nRMSE); the benchmark's primary selector is mean nRMSE across the
 five fields. We additionally report near-wall <i>T</i>-RMSE and edge gradient ratios (Sec.&nbsp;VI-D).
 No baseline uses unsupervised domain adaptation (UDA) in our runs; the published baselines do, which is
-their best case. <i>Training.</i> Adam [11] with a warmup&ndash;stable&ndash;decay schedule, z-scored
-targets, per-case normalized frame. Baseline numbers are quoted from the SIMSHIFT paper.</p>
+their best case. <i>Training.</i> Adam [11] at learning rate 10<sup>&minus;3</sup>, batch size 4 cases (16,384 query nodes each),
+with a warmup&ndash;stable&ndash;decay schedule: a 5-epoch linear warmup, a stable phase held until the validation
+mean-nRMSE plateaus (patience 25 epochs), then a 30-epoch cosine decay to 10<sup>&minus;6</sup>; the best-validation
+checkpoint is kept. Targets are <i>z</i>-scored per channel and coordinates mapped to a per-case unit frame. The
+encoder uses <i>d<sub>s</sub></i>=128 (2 layers, 4 heads); the descriptor <i>d<sub>g</sub></i>=64 with <i>k</i>=16;
+the core is 256-wide, 12 layers, 8 heads, <i>M</i>=64 slices, ball-query radii {0.05,&thinsp;0.25} with {8,&thinsp;32}
+neighbors (&asymp;14.3&thinsp;M parameters). Baseline numbers are quoted from the SIMSHIFT paper.</p>
 
 <h2>VI.&ensp;Results</h2>
 <h3>A.&ensp;SIMSHIFT Heatsink Benchmark</h3>
@@ -300,6 +339,29 @@ geometries), a sub-second forward pass is up to four orders of magnitude (&asymp
 we report the inference figure as an estimate pending exact per-GPU timing. On fidelity, three prism boundary
 layers recover the near-wall hot spot to within 0.1&thinsp;K of a fine mesh (378.8 vs. 378.9&thinsp;K)
 at &asymp;2.7&times; fewer cells.</p>
+
+<h3>F.&ensp;Ablations</h3>
+<p>Table&nbsp;VII isolates the main design choices on the SIMSHIFT medium split. The surface encoder gives the best
+temperature and, unlike the analytic SDF, applies to arbitrary CAD; the SDF variant is data-efficient (lower averaged
+nRMSE, 0.593, and velocity, 0.038&thinsp;m/s) but presupposes an analytic shape. Full 12-scalar physics conditioning
+improves temperature by 0.8&thinsp;K over wall-temperature-only, confirming the fluid-property and boundary-condition
+scalars carry signal. Corpus pretraining lowers the reduced-conditioning model from 12.94 to 12.38&thinsp;K
+(Sec.&nbsp;VI-C); both the full-conditioning and the pretrained models pass UPT's 12.41&thinsp;K. Separately, feeding
+the surface as a per-node descriptor (used here) generalized better than AB-UPT-style per-block cross-attention on the
+raw surface cloud at this data scale.</p>
+
+<table>
+  <caption><span class="tnum">Table VII</span><span class="ttl">Ablations on SIMSHIFT Medium (OOD). Temperature RMSE (K); lower is better.</span></caption>
+  <thead><tr><th class="l">Factor</th><th class="l">Setting</th><th>Temp&nbsp;RMSE&nbsp;(K)</th></tr></thead>
+  <tbody>
+    <tr><td class="l">geometry input</td><td class="l">surface encoder (ours)</td><td><b>12.14</b></td></tr>
+    <tr><td class="l"></td><td class="l">analytic SDF</td><td>13.07</td></tr>
+    <tr><td class="l">conditioning</td><td class="l">full, 12 scalars (ours)</td><td><b>12.14</b></td></tr>
+    <tr><td class="l"></td><td class="l">reduced, wall-<i>T</i> only</td><td>12.94</td></tr>
+    <tr><td class="l">pretraining</td><td class="l">reduced, from scratch</td><td>12.94</td></tr>
+    <tr><td class="l">(reduced cond.)</td><td class="l">reduced, corpus-pretrained</td><td><b>12.38</b></td></tr>
+  </tbody>
+</table>
 
 <h2>VII.&ensp;Discussion and Limitations</h2>
 <p>We state the boundaries plainly. The corpus is air-dominated (tens of oil/glycol cases), so the
