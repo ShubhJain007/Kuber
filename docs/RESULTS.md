@@ -101,6 +101,16 @@ at every level (easy 0.426→0.379, medium 0.615→0.580, hard 0.716→0.709). T
 self-generated data adds value: identical architecture and fine-tuning, the only added ingredient is
 the corpus.
 
+**Why it helps — and why it isn't leakage.** With only a few hundred fine-tuning cases, initialization
+matters: pretraining on the broader OpenFOAM corpus supplies a physics prior (temperature–flow
+coupling, near-wall behavior, boundary-layer structure) that is hard to learn from the small target set
+alone — hence the largest gains at the easy shift and in-distribution, tapering at the hardest shift the
+corpus doesn't cover. Critically, **no held-out evaluation data is ever seen during pretraining or
+fine-tuning**: the pretraining corpus is our own OpenFOAM data, entirely disjoint from the SIMSHIFT
+benchmark and its splits; the SIMSHIFT target (OOD) split is used only for evaluation; and in the
+multi-geometry setting the held-out per-device cases are excluded from training. The gains reflect
+transfer of physics, not exposure to the test distribution.
+
 ---
 
 ## 4. Numerical stability — no gradient explosion

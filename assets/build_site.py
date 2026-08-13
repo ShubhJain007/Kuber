@@ -144,8 +144,10 @@ CONTENT = """
       <div class="stat"><div class="num">2</div><div class="lbl">device classes &mdash; heatsinks &amp; cold plates &mdash; from one model</div></div>
       <div class="stat"><div class="num">~14&thinsp;M</div><div class="lbl">parameters, geometry-general (arbitrary CAD)</div></div>
     </div>
-    <figure class="fig">__CMPHS__<figcaption>Heatsink &mdash; Kuber prediction vs. CFD ground truth (&plusmn;2.11&thinsp;K temperature agreement).</figcaption></figure>
-    <figure class="fig">__CMPCP__<figcaption>Cold plate &mdash; Kuber prediction vs. CFD ground truth (&plusmn;1.33&thinsp;K, 445&times; faster than the CFD solver).</figcaption></figure>
+    <div class="grid2">
+      <figure class="fig">__CMPHS__<figcaption>Heatsink &mdash; Kuber prediction vs. CFD ground truth (&plusmn;2.11&thinsp;K temperature agreement).</figcaption></figure>
+      <figure class="fig">__CMPCP__<figcaption>Cold plate &mdash; Kuber prediction vs. CFD ground truth (&plusmn;1.33&thinsp;K, 445&times; faster than the CFD solver).</figcaption></figure>
+    </div>
   </section>
 
   <section id="how">

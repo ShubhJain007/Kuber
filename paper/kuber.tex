@@ -243,6 +243,17 @@ in-dist. & 4.63 & \textbf{4.09} & $-12\%$ \\ \bottomrule
 \end{tabular}
 \end{table}
 
+\textbf{Why it helps, and why it is not leakage.} With only a few hundred fine-tuning cases,
+initialization matters: pretraining on the broader OpenFOAM corpus supplies a physics prior---the
+coupling of temperature and flow, near-wall behavior, and boundary-layer structure---that is hard to
+learn from the small target set alone, which is why the gain is largest at the easy shift and
+in-distribution and tapers at the hardest shift the corpus does not cover. Critically, \emph{no
+held-out evaluation data is ever seen during pretraining or fine-tuning}: the pretraining corpus is our
+own OpenFOAM data, disjoint from the SIMSHIFT benchmark and its splits; the SIMSHIFT target
+(out-of-distribution) split is used only for evaluation; and in the multi-geometry setting the held-out
+per-device cases are excluded from training. The gains reflect transfer of physics, not exposure to
+the test distribution.
+
 \subsection{Numerical Stability}\label{sec:stab}
 A deployable surrogate must reproduce steep near-wall gradients without over-smoothing or emitting
 unphysical spikes. We measure the ratio of predicted to CFD temperature-gradient magnitude in the edge

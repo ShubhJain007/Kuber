@@ -19,8 +19,9 @@ The full stack, from physics-data generation to a deployable, geometry-general s
 
 **Kuber prediction vs. CFD ground truth.** A heatsink (temperature agreement ±2.11 K) and a liquid cold plate (±1.33 K, 445× faster than the CFD solver):
 
-![Heatsink — Kuber prediction vs CFD ground truth (±2.11 K RMSE)](assets/sim/heat-sink-comparison.png)
-![Cold plate — Kuber prediction vs CFD ground truth (±1.33 K RMSE, 445× faster)](assets/sim/cold-plate-comparison.png)
+| | |
+|:---:|:---:|
+| ![Heatsink — Kuber vs CFD (±2.11 K RMSE)](assets/sim/heat-sink-comparison.png) | ![Cold plate — Kuber vs CFD (±1.33 K RMSE, 445× faster)](assets/sim/cold-plate-comparison.png) |
 
 > **Read the [technical report (PDF)](paper/kuber.pdf).** The [project page](https://shubhjain007.github.io/Kuber/) and an [interactive ground-truth-vs-prediction viewer](https://shubhjain007.github.io/Kuber/demo.html) (3D solid geometry + fluid field, heatsink & cold plate) are served from **GitHub Pages**.
 
@@ -123,6 +124,8 @@ All numbers are for **SurfaceGeoTransolver** (full-geometry input), measured and
 | | |
 |---|---|
 | ![Value of the corpus](assets/fig_value_of_data.svg) | ![Speed — surrogate vs CFD](assets/fig_speed.svg) |
+
+> **Pretraining a small dataset — and why it isn't leakage.** With only a few hundred fine-tuning cases, initialization matters: pretraining on the broader OpenFOAM corpus gives the model a physics prior (temperature–flow coupling, near-wall behavior, boundary-layer structure) that is hard to learn from the small target set alone — which is why the gain is largest at the easy shift and in-distribution, and tapers at the hardest shift the corpus doesn't cover. **No held-out evaluation data is ever seen during pretraining or fine-tuning:** the pretraining corpus is our own OpenFOAM data, disjoint from SIMSHIFT and its splits; the SIMSHIFT target (OOD) split is used only for evaluation; and the multi-geometry held-out per-device cases are excluded from training. The gains reflect transfer of physics, not exposure to the test distribution.
 
 **One model, two device classes.** Held-out per class on our corpus (there is no public cold-plate CHT benchmark; not comparable to the SIMSHIFT numbers above):
 
