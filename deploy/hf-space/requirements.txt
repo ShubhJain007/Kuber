@@ -1,0 +1,7 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.12.1
+numpy==2.4.6
+nvidia-physicsnemo==2.1.1
+fastapi
+uvicorn[standard]
+huggingface_hub

@@ -1,0 +1,734 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kuber.ai — CFD in seconds</title>
+<style>
+  @font-face{font-family:'Plex Sans';src:url('/static/vendor/fonts/PlexSans-400.woff2') format('woff2');font-weight:400;font-display:swap}
+  @font-face{font-family:'Plex Sans';src:url('/static/vendor/fonts/PlexSans-600.woff2') format('woff2');font-weight:600;font-display:swap}
+  @font-face{font-family:'Plex Sans';src:url('/static/vendor/fonts/PlexSans-700.woff2') format('woff2');font-weight:700;font-display:swap}
+  @font-face{font-family:'Plex Mono';src:url('/static/vendor/fonts/PlexMono-400.woff2') format('woff2');font-weight:400;font-display:swap}
+  @font-face{font-family:'Plex Mono';src:url('/static/vendor/fonts/PlexMono-500.woff2') format('woff2');font-weight:500;font-display:swap}
+  @font-face{font-family:'Plex Mono';src:url('/static/vendor/fonts/PlexMono-600.woff2') format('woff2');font-weight:600;font-display:swap}
+  :root{
+    --bg:#eef2f6;--panel:#ffffff;--card:#f5f8fb;--card2:#ffffff;--line:#e4e9ef;--line2:#d3dce4;
+    --glass:rgba(255,255,255,.9);--ink:#16202b;--dim:#5c6b78;--faint:#94a3b0;
+    --ember:#ef5f22;--cyan:#0bb0c2;--cyan-soft:rgba(11,176,194,.11);--good:#2fa866;--hot:#e23b2e;
+    --sh:0 1px 2px rgba(23,35,51,.06),0 8px 24px rgba(23,35,51,.07);
+    --sans:'Plex Sans',ui-sans-serif,system-ui,sans-serif;--mono:'Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:var(--sans);overflow:hidden;-webkit-font-smoothing:antialiased}
+  .ey{font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--faint)}
+  button{font-family:var(--sans);cursor:pointer}
+  .app{display:grid;grid-template-rows:54px 1fr;height:100vh}
+  header{display:flex;align-items:center;gap:14px;padding:0 18px;border-bottom:1px solid var(--line);background:#ffffff}
+  .wm{font-weight:700;font-size:16px}.wm b{color:var(--ember)}
+  /* Kuber gold emblem logo */
+  .brand{display:flex;align-items:center;gap:8px}
+  .logoMark{display:inline-flex;align-items:center}.logoMark svg{height:30px;width:auto;display:block}
+  .kw{font-family:var(--sans);font-weight:700;letter-spacing:-.01em;font-size:17px;color:var(--ink)}
+  .kd{font-family:var(--mono);font-size:10px;letter-spacing:.04em;color:var(--faint);align-self:flex-end;margin:0 0 3px -3px}
+  .pbrand{display:flex;align-items:center;gap:11px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+  .pbrand .logoMark svg{height:40px}.pbrand .kw{font-size:18px}
+  .ptag{font-family:var(--mono);font-size:9px;letter-spacing:.11em;text-transform:uppercase;color:var(--faint);margin-top:3px}
+  .rule{width:1px;height:22px;background:var(--line)}
+  .projsel{position:relative}
+  .projsel select{appearance:none;background:var(--card);color:var(--ink);border:1px solid var(--line2);border-radius:8px;padding:7px 30px 7px 11px;font-family:var(--sans);font-size:13px;font-weight:600;cursor:pointer}
+  .projsel::after{content:"";position:absolute;right:11px;top:47%;width:6px;height:6px;border-right:1.6px solid var(--dim);border-bottom:1.6px solid var(--dim);transform:translateY(-50%) rotate(45deg);pointer-events:none}
+  .team{margin-left:auto;display:flex;align-items:center;gap:10px}
+  .avs{display:flex}.av{width:28px;height:28px;border-radius:50%;border:2px solid var(--panel);margin-left:-8px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;font-weight:600;color:#08131a}.av:first-child{margin-left:0}
+  .invite{background:transparent;color:var(--cyan);border:1px solid var(--line2);border-radius:8px;padding:7px 12px;font-size:12.5px}.invite:hover{border-color:var(--cyan)}
+  .status{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--dim)}.status .d{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px rgba(90,196,127,.15)}
+  .main{display:grid;grid-template-columns:288px 1fr 300px;min-height:0}
+  .rail{background:var(--panel);overflow-y:auto;display:flex;flex-direction:column;gap:20px;padding:20px 16px}
+  .rail.left{border-right:1px solid var(--line)}.rail.right{border-left:1px solid var(--line)}
+  .sec{display:flex;flex-direction:column;gap:10px}
+  .sechd{display:flex;justify-content:space-between;align-items:center}
+  .add{background:rgba(255,107,53,.14);color:var(--ember);border:1px solid rgba(255,107,53,.3);border-radius:7px;padding:4px 9px;font-size:11.5px;font-weight:600}.add:hover{background:rgba(255,107,53,.22)}
+  .glist{display:flex;flex-direction:column;gap:6px}
+  .geo{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:9px;padding:9px 11px;cursor:pointer;transition:.12s}
+  .geo:hover{border-color:var(--line2)}.geo.on{border-color:var(--cyan);background:var(--cyan-soft)}
+  .geo .ic{width:26px;height:26px;border-radius:6px;background:var(--card2);display:flex;align-items:center;justify-content:center;flex:none}
+  .geo .ic svg{width:15px;height:15px;stroke:var(--dim);fill:none;stroke-width:1.5}.geo.on .ic svg{stroke:var(--cyan)}
+  .geo .nm{font-size:13px;font-weight:600}.geo .sub{font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+  .geo .tag{margin-left:auto;font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);border:1px solid var(--line2);border-radius:5px;padding:2px 5px}
+  .spec{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .cond{display:flex;justify-content:space-between;padding:8px 12px;font-size:12.5px;color:var(--dim)}.cond+.cond{border-top:1px solid var(--line)}.cond b{color:var(--ink);font-family:var(--mono);font-weight:500}
+  .seg{display:flex;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px}
+  .seg button{flex:1;background:transparent;color:var(--dim);border:none;border-radius:7px;padding:8px 4px;font-size:12px;transition:.14s;white-space:nowrap}.seg button:hover{color:var(--ink)}
+  .seg button.on{background:var(--card2);color:var(--cyan);box-shadow:inset 0 0 0 1px var(--line2);font-weight:600}
+  .predict{margin-top:auto;width:100%;background:var(--ember);color:#1a0800;border:none;border-radius:11px;padding:14px;font-size:14px;font-weight:700}.predict:hover{filter:brightness(1.07)}.predict:disabled{opacity:.45;cursor:progress}
+  /* viewport */
+  .stage{position:relative;min-height:0;background-color:#e9eef3;background-image:radial-gradient(rgba(23,35,51,.07) 1px,transparent 1px);background-size:22px 22px}
+  #canvas{width:100%;height:100%;display:block;opacity:0;transition:opacity .45s ease}
+  .vswitch{position:absolute;top:14px;left:50%;transform:translateX(-50%);display:flex;background:var(--glass);border:1px solid var(--line2);border-radius:10px;padding:3px;gap:3px;backdrop-filter:blur(7px)}
+  .vswitch button{background:transparent;color:var(--dim);border:none;border-radius:7px;padding:7px 15px;font-size:12.5px;font-weight:600}.vswitch button.on{background:var(--ember);color:#180800}
+  .hud{position:absolute;top:16px;left:18px;font-family:var(--mono);font-size:11px;color:var(--dim);line-height:1.7;pointer-events:none}.hud .id{color:var(--ink);font-weight:500}
+  /* floating metric cards (Vinci-style) */
+  .cards{position:absolute;top:60px;right:18px;display:flex;flex-direction:column;gap:10px;width:196px}
+  .mc{display:flex;align-items:center;gap:12px;background:var(--glass);border:1px solid var(--line2);border-radius:12px;padding:12px 13px;backdrop-filter:blur(7px)}
+  .mc .ic{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex:none}
+  .mc .ic svg{width:18px;height:18px;fill:none;stroke-width:1.7}
+  .mc .lab{font-size:10.5px;color:var(--dim)}
+  .mc .val{font-family:var(--mono);font-size:19px;font-weight:600;line-height:1.1;font-variant-numeric:tabular-nums}
+  .mc .val small{font-size:11px;color:var(--faint);font-weight:400}
+  /* colorbar */
+  .cbar-wrap{position:absolute;right:20px;bottom:60px;display:flex;gap:8px;height:210px}
+  #cbar{width:14px;height:100%;border-radius:3px;border:1px solid var(--line2)}
+  .cbar-lab{display:flex;flex-direction:column;justify-content:space-between;align-items:flex-end;font-family:var(--mono);font-size:10.5px;color:var(--dim);font-variant-numeric:tabular-nums}.cbar-lab .u{color:var(--faint)}
+  .hint{position:absolute;left:120px;bottom:15px;font-size:11px;color:var(--faint);display:flex;gap:14px}.hint b{color:var(--dim);font-weight:400}
+  .cadnote{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);background:rgba(239,95,34,.1);border:1px solid rgba(239,95,34,.35);color:#c24714;font-size:11.5px;border-radius:8px;padding:8px 14px;display:none;max-width:60%}
+  .overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--dim);font-size:13.5px;background:rgba(240,244,248,.7);backdrop-filter:blur(3px)}.overlay.hide{display:none}
+  .spinner{width:15px;height:15px;border:2px solid var(--line2);border-top-color:var(--ember);border-radius:50%;display:inline-block;margin-right:10px;animation:spin .7s linear infinite;vertical-align:-3px}@keyframes spin{to{transform:rotate(360deg)}}
+  /* results */
+  .mlist{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:12px}
+  .m{display:flex;justify-content:space-between;align-items:baseline;padding:12px 14px}.m+.m{border-top:1px solid var(--line)}
+  .m .k{font-size:12.5px;color:var(--dim)}.m .v{font-family:var(--mono);font-size:16px;font-weight:600;font-variant-numeric:tabular-nums}.m .v small{font-size:11px;color:var(--faint);font-weight:400;margin-left:2px}.m .v.ok{color:var(--good)}
+  .badges{display:flex;flex-direction:column;gap:8px}
+  .badge{display:flex;align-items:center;gap:9px;font-size:11.5px;color:var(--dim);background:var(--card);border:1px solid var(--line);border-radius:9px;padding:9px 11px;line-height:1.35}.badge .d{width:7px;height:7px;border-radius:50%;background:var(--good);flex:none}
+  /* SOTA benchmark table */
+  .sota{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:11px;overflow:hidden;box-shadow:var(--sh)}
+  .sotahd{display:flex;justify-content:space-between;padding:8px 12px;font-family:var(--mono);font-size:9.5px;letter-spacing:.05em;color:var(--faint);text-transform:uppercase;border-bottom:1px solid var(--line)}
+  .sotar{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;font-size:12.5px;color:var(--dim)}.sotar+.sotar{border-top:1px solid var(--line)}
+  .sotar span:last-child{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .sotar em{font-style:normal;font-size:9.5px;color:var(--faint);margin-left:5px}
+  .sotar.best{background:rgba(47,168,102,.1);color:var(--ink);font-weight:600}.sotar.best span:last-child{color:var(--good)}
+  .sotanote{font-size:11px;color:var(--faint);line-height:1.45;margin-top:2px}.sotanote b{color:var(--dim)}
+  .sotabtn{width:100%;background:var(--card);border:1px solid var(--line2);border-radius:9px;padding:8px;font-size:11.5px;color:var(--cyan);font-weight:600;margin-top:2px}.sotabtn:hover{border-color:var(--cyan);background:var(--cyan-soft)}
+  .benchwrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .bench{width:100%;border-collapse:collapse;font-size:12.5px}
+  .bench th{font-family:var(--mono);font-size:9.5px;letter-spacing:.03em;text-transform:uppercase;color:var(--faint);text-align:right;padding:8px 10px;border-bottom:1px solid var(--line2);white-space:nowrap}
+  .bench th:first-child{text-align:left}
+  .bench td{padding:9px 10px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--dim);white-space:nowrap}
+  .bench td:first-child{text-align:left;font-family:var(--sans);color:var(--ink)}
+  .bench tr+tr td{border-top:1px solid var(--line)}
+  .bench tr.us td{background:rgba(47,168,102,.08)}.bench tr.us td:first-child{font-weight:600}
+  .bench td.win{color:var(--good);font-weight:700}
+  .bench td.yes{color:var(--good);font-weight:700}.bench td.no{color:var(--faint)}
+  .bench .prev{font-family:var(--mono);font-size:9px;color:var(--faint);margin-left:5px}
+  /* modal */
+  .scrim{position:fixed;inset:0;background:rgba(23,35,51,.4);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;z-index:50}.scrim.show{display:flex}
+  .modal{width:min(560px,92vw);max-height:86vh;overflow:hidden;background:var(--panel);border:1px solid var(--line2);border-radius:16px;display:flex;flex-direction:column}
+  .mhd{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--line)}.mhd h3{margin:0;font-size:15px;font-weight:700}.x{background:transparent;border:none;color:var(--dim);font-size:20px}
+  .mtabs{display:flex;gap:4px;padding:12px 18px 0}.mtabs button{background:transparent;color:var(--dim);border:none;border-bottom:2px solid transparent;padding:8px 4px;margin-right:14px;font-size:13px;font-weight:600}.mtabs button.on{color:var(--ink);border-color:var(--ember)}
+  .mbody{padding:16px 18px;overflow-y:auto}
+  .lib{display:grid;grid-template-columns:1fr 1fr;gap:8px}.libc{position:relative;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px 12px;cursor:pointer}.libc:hover{border-color:var(--cyan)}.libc .t{font-size:13px;font-weight:600}.libc .s{font-family:var(--mono);font-size:10.5px;color:var(--faint);margin-top:3px}
+  .gtpill{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.04em;color:var(--good);background:rgba(47,168,102,.12);border:1px solid rgba(47,168,102,.3);border-radius:5px;padding:1px 5px;vertical-align:1px}
+  .devtag{position:absolute;top:9px;right:9px;font-family:var(--mono);font-size:8px;font-weight:600;letter-spacing:.07em;padding:2px 6px;border-radius:5px}
+  .devtag.heatsink{color:var(--ember);background:rgba(239,95,34,.12);border:1px solid rgba(239,95,34,.3)}
+  .devtag.coldplate{color:var(--cyan);background:var(--cyan-soft);border:1px solid rgba(11,176,194,.35)}
+  .libdl{position:absolute;right:9px;bottom:9px;background:var(--card2);border:1px solid var(--line2);border-radius:7px;padding:4px 8px;font-family:var(--mono);font-size:10.5px;color:var(--dim);font-weight:600}.libdl:hover{border-color:var(--cyan);color:var(--cyan)}
+  .drop{border:1.5px dashed var(--line2);border-radius:12px;padding:26px;text-align:center;color:var(--dim);font-size:13px}.drop b{color:var(--ink)}.drop input{display:none}
+  .filebtn{display:inline-block;margin-top:12px;background:var(--card2);border:1px solid var(--line2);border-radius:8px;padding:9px 16px;color:var(--ink);font-size:13px}
+  .field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}.field label{font-size:12px;color:var(--dim)}.field input,.field select{background:var(--card);border:1px solid var(--line2);border-radius:8px;padding:10px 11px;color:var(--ink);font-family:var(--sans);font-size:13px}
+  .prim{width:100%;background:var(--ember);color:#180800;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;margin-top:4px}
+  .note{font-size:11.5px;color:var(--faint);margin-top:10px;line-height:1.5}
+  .sel{appearance:none;width:100%;background:var(--card);color:var(--ink);border:1px solid var(--line2);border-radius:9px;padding:9px 11px;font-family:var(--sans);font-size:13px;cursor:pointer}
+  .editor{display:flex;flex-direction:column;gap:11px}
+  .prow{display:grid;grid-template-columns:1fr auto;gap:3px 8px;align-items:center}
+  .prow .pl{font-size:12px;color:var(--dim)}
+  .prow .pvv{font-family:var(--mono);font-size:11.5px;color:var(--ink);font-variant-numeric:tabular-nums}
+  .prow input[type=range]{grid-column:1 / -1;width:100%;height:4px;accent-color:var(--ember);cursor:pointer}
+  .exprow{display:flex;gap:6px}
+  .exp{flex:1;background:var(--card);border:1px solid var(--line2);border-radius:8px;padding:9px 4px;font-size:12px;color:var(--ink);font-weight:600}
+  .exp:hover{border-color:var(--cyan);color:var(--cyan)}
+  .xbadge{position:absolute;top:58px;left:18px;background:rgba(214,158,0,.12);border:1px solid rgba(214,158,0,.5);color:#9a7200;font-size:11px;border-radius:9px;padding:7px 11px;display:none;max-width:232px;line-height:1.4}
+  /* split-screen compare */
+  .cmpUI{position:absolute;inset:0;pointer-events:none;display:none}
+  .cmpDiv{position:absolute;left:50%;top:0;bottom:0;width:1px;background:linear-gradient(180deg,transparent,rgba(23,35,51,.35),transparent)}
+  .cmpLab{position:absolute;top:52px;font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.04em;padding:6px 11px;border-radius:8px;background:var(--glass);border:1px solid var(--line2);box-shadow:var(--sh)}
+  .cmpLab.l{left:calc(25% - 66px);color:var(--ember)}.cmpLab.r{left:calc(75% - 62px);color:var(--cyan)}
+  .cmpLab .dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:6px;vertical-align:1px}.cmpLab.l .dot{background:var(--ember)}.cmpLab.r .dot{background:var(--cyan)}
+  .cmpAcc{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);background:var(--glass);border:1px solid var(--line2);border-radius:10px;padding:9px 15px;font-size:12px;color:var(--ink);box-shadow:var(--sh);text-align:center;line-height:1.45;pointer-events:auto}.cmpAcc b{font-family:var(--mono);color:var(--good)}
+  .mc,.vswitch,.mlist,.spec,.modal,.cadnote{box-shadow:var(--sh)}
+  /* projects landing */
+  #projects{position:fixed;inset:0;background:var(--bg);display:none;z-index:20}
+  #projects.show{display:flex}
+  .pside{width:252px;background:#fff;border-right:1px solid var(--line);padding:18px 16px;display:flex;flex-direction:column;gap:22px}
+  .pacct{display:flex;align-items:center;gap:11px}
+  .pav{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:600;font-size:13px;color:#fff;background:radial-gradient(circle at 50% 60%,#ffd24a,#ff7a2f 45%,#e23b2e 72%,#7a5bd6 118%)}
+  .porg{font-weight:700;font-size:15px}.porg b{color:var(--ember)}.porg span{color:var(--faint);font-size:11px}
+  .pmail{font-size:12px;color:var(--dim)}
+  .pnav{display:flex;flex-direction:column;gap:3px}
+  .pn{display:flex;align-items:center;gap:10px;background:transparent;border:none;border-radius:9px;padding:10px 11px;font-size:13.5px;color:var(--dim);text-align:left;font-weight:500}
+  .pn svg{width:18px;height:18px;stroke:var(--faint);fill:none;stroke-width:1.6}
+  .pn:hover{background:var(--card)}.pn.on{background:var(--cyan-soft);color:var(--ink);font-weight:600}.pn.on svg{stroke:var(--cyan)}
+  .pver{margin-top:auto;font-family:var(--mono);font-size:10px;color:var(--faint);line-height:1.6}
+  .pmain{flex:1;padding:24px 32px;overflow-y:auto}
+  .ptop{display:flex;align-items:center;justify-content:space-between}.ptop h1{margin:0;font-size:22px;font-weight:700}
+  .pnew{background:var(--ember);color:#180800;border:none;border-radius:9px;padding:10px 16px;font-size:13.5px;font-weight:700}.pnew:hover{filter:brightness(1.07)}
+  .pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(222px,1fr));gap:18px;margin-top:24px}
+  .pcard{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;cursor:pointer;box-shadow:var(--sh);transition:transform .12s,box-shadow .12s}
+  .pcard:hover{transform:translateY(-2px);box-shadow:0 4px 10px rgba(23,35,51,.1),0 14px 34px rgba(23,35,51,.1)}
+  .pthumb{height:148px;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#fbfcfe,#f2f5f9)}
+  .sphere{width:78px;height:78px;border-radius:50%;background:radial-gradient(circle at 50% 62%,#ffd85e,#ff7a2f 42%,#e23b2e 63%,#5f7fd6 108%);box-shadow:0 8px 20px rgba(226,59,46,.22)}
+  .pinfo{padding:12px 14px;display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+  .pinfo .pt{font-size:14px;font-weight:600;line-height:1.25}.pinfo .ped{font-family:var(--mono);font-size:10.5px;color:var(--faint);margin-top:3px}
+  .pdel{background:transparent;border:none;color:var(--faint);opacity:0;transition:.12s;padding:2px;display:flex}.pdel svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.5}
+  .pcard:hover .pdel{opacity:1}.pdel:hover{color:var(--hot)}
+  @media(prefers-reduced-motion:reduce){#canvas,.seg button{transition:none}.spinner{animation:none}}
+</style>
+</head>
+<body>
+<div id="projects">
+  <aside class="pside">
+    <div class="pbrand"><span class="logoMark"></span><div><div><span class="kw">Kuber</span><span class="kd">.ai</span></div><div class="ptag">CFD, solved in seconds</div></div></div>
+    <div class="pacct"><div class="pav">SJ</div><div><div class="porg">Shubh Jain <span>▾</span></div><div class="pmail">sjain@kuber.ai</div></div></div>
+    <nav class="pnav">
+      <button class="pn on" data-nav="recent"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7.5"/><path d="M10 5.5V10l3 2"/></svg>Recent Projects</button>
+      <button class="pn" data-nav="all"><svg viewBox="0 0 20 20"><rect x="3" y="3" width="6" height="6" rx="1"/><rect x="11" y="3" width="6" height="6" rx="1"/><rect x="3" y="11" width="6" height="6" rx="1"/><rect x="11" y="11" width="6" height="6" rx="1"/></svg>All Projects</button>
+    </nav>
+    <div class="pver">Kuber.ai · v0.9<br>local · RTX 4060</div>
+  </aside>
+  <main class="pmain">
+    <div class="ptop"><h1 id="pTitle">Recent Projects</h1><button class="pnew" id="pNew">New Project +</button></div>
+    <div class="pgrid" id="pGrid"></div>
+  </main>
+</div>
+<div class="app" id="workspace" style="display:none">
+  <header>
+    <div class="wm brand" id="wm" style="cursor:pointer" title="Back to projects"><span class="logoMark"></span><span class="kw">Kuber</span><span class="kd">.ai</span></div><div class="rule"></div>
+    <div class="projsel"><select id="projSel"></select></div>
+    <div class="team"><div class="avs" id="avs"></div><button class="invite" id="inviteBtn">+ Invite</button><div class="rule"></div><div class="status"><span class="d"></span>RTX 4060 · ready</div></div>
+  </header>
+  <div class="main">
+    <div class="rail left">
+      <div class="sec"><div class="ey">Scenario</div>
+        <select class="sel" id="scenSel">
+          <option value="all">All device types</option>
+          <option value="natural">Natural air convection · heatsink</option>
+          <option value="liquid">Forced liquid cold plate</option>
+        </select>
+        <div class="spec" id="scenInfo"></div></div>
+      <div class="sec"><div class="sechd"><div class="ey">Geometries</div><button class="add" id="addGeoBtn">+ Add</button></div><div class="glist" id="glist"></div></div>
+      <div class="sec"><div class="ey">Parameters</div><div id="editor" class="editor"></div></div>
+      <div class="sec"><div class="ey">Field</div><div class="seg" id="fieldSeg"><button data-f="T" class="on">Temperature</button><button data-f="velocity">Velocity</button></div></div>
+      <div class="sec"><div class="ey">View</div><div class="seg" id="viewSeg"><button data-v="pred" class="on">Prediction</button><button data-v="gt">CFD truth</button><button data-v="err">|Error|</button></div></div>
+      <div class="sec"><div class="ey">Cross-section</div><div class="seg" id="clipSeg"><button data-c="off" class="on">Off</button><button data-c="x">X</button><button data-c="y">Y</button><button data-c="z">Z</button></div>
+        <input type="range" id="clipPos" min="-100" max="100" value="0" style="width:100%;accent-color:var(--ember);cursor:pointer;display:none"></div>
+      <button class="predict" id="predictBtn">Predict field</button>
+      <div class="sec" id="exportSec"><div class="ey">Export</div><div class="exprow">
+        <button class="exp" data-fmt="stl">STL</button><button class="exp" data-fmt="csv">CSV</button><button class="exp" data-fmt="vtk">VTK</button>
+      </div></div>
+    </div>
+    <div class="stage">
+      <canvas id="canvas"></canvas>
+      <div class="vswitch" id="vswitch"><button data-r="surface" class="on">Surface</button><button data-r="points">Point cloud</button><button data-r="compare" id="cmpBtn" disabled title="Predict a preset geometry to compare against CFD">Compare vs CFD</button></div>
+      <div class="cmpUI" id="cmpUI">
+        <div class="cmpLab l"><span class="dot"></span>Kuber.ai</div>
+        <div class="cmpLab r"><span class="dot"></span>CFD ground truth</div>
+        <div class="cmpDiv"></div>
+        <div class="cmpAcc" id="cmpAcc">—</div>
+      </div>
+      <div class="hud"><div class="id" id="hudId">—</div><div id="hudPts">—</div></div>
+      <div id="heatLbl" style="display:none;position:absolute;top:14px;right:14px;z-index:6;align-items:center;gap:7px;background:rgba(20,10,6,.82);border:1px solid rgba(255,90,44,.55);color:#ffb79c;font-size:11px;font-weight:600;letter-spacing:.02em;padding:6px 10px;border-radius:8px;backdrop-filter:blur(6px)"><span style="width:9px;height:9px;border-radius:50%;background:#ff5a2c;box-shadow:0 0 8px #ff5a2c"></span>Heated base — chip heat source</div>
+      <div id="cpLegend" style="display:none;position:absolute;left:14px;bottom:66px;z-index:6;max-width:260px;background:rgba(10,16,22,.86);border:1px solid #26313c;border-radius:10px;padding:11px 13px;font-size:11.5px;line-height:1.55;color:#c3ccd5;backdrop-filter:blur(6px)">
+        <div style="font-weight:700;color:#e6edf3;margin-bottom:7px">Liquid cold plate — how it works</div>
+        <div style="display:flex;align-items:center;gap:8px"><span style="width:13px;height:9px;border-radius:2px;background:rgba(75,214,224,.35);border:1px solid #4bd6e0;flex:none"></span>Coolant channel — liquid flows <b>inside</b></div>
+        <div style="display:flex;align-items:center;gap:8px"><span style="width:13px;height:9px;border-radius:2px;background:#ff5a2c;flex:none"></span>Base wall — chip heat source</div>
+        <div style="display:flex;align-items:center;gap:8px"><span style="color:#4bd6e0;font-weight:800;width:13px;text-align:center;flex:none">→</span>Flow: inlet (left) → outlet (right)</div>
+        <div style="display:flex;align-items:center;gap:8px"><span style="width:13px;height:9px;border-radius:2px;background:rgba(174,184,194,.18);border:1px solid #8b98a5;flex:none"></span>Plate body (metal housing)</div>
+        <div style="margin-top:7px;color:#8b98a5">One straight rectangular channel. Serpentine / pin-fin topologies coming soon.</div>
+      </div>
+      <div class="xbadge" id="xbadge">⚠ Extrapolated — outside the trained range (fins 5–8). Field is indicative, not validated.</div>
+      <div class="cards" id="cards">
+        <div class="mc"><div class="ic" style="background:rgba(47,168,102,.15)"><svg viewBox="0 0 24 24" stroke="#2fa866"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div><div><div class="lab">Kuber.ai runtime</div><div class="val" id="mcTime">—</div></div></div>
+        <div class="mc"><div class="ic" style="background:rgba(92,107,120,.14)"><svg viewBox="0 0 24 24" stroke="#5c6b78"><path d="M6 4h12M6 20h12M8 4v4l4 4-4 4v4M16 4v4l-4 4 4 4v4"/></svg></div><div><div class="lab">CFD solver</div><div class="val" id="mcCfd">—</div></div></div>
+        <div class="mc"><div class="ic" style="background:rgba(255,107,53,.15)"><svg viewBox="0 0 24 24" stroke="#ff6b35"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></svg></div><div><div class="lab">Speed-up vs CFD</div><div class="val" id="mcSpd">—</div></div></div>
+        <div class="mc"><div class="ic" style="background:rgba(226,59,46,.15)"><svg viewBox="0 0 24 24" stroke="#e23b2e"><path d="M14 14.5V5a2 2 0 0 0-4 0v9.5a4 4 0 1 0 4 0z"/></svg></div><div><div class="lab">Max temperature</div><div class="val" id="mcTemp">—</div></div></div>
+      </div>
+      <div class="cbar-wrap"><canvas id="cbar" width="14" height="210"></canvas><div class="cbar-lab"><span id="cbMax">—</span><span class="u" id="cbField">T</span><span id="cbMin">—</span></div></div>
+      <div class="hint"><span><b>drag</b> orbit</span><span><b>scroll</b> zoom</span><span><b>drag panels</b> to move</span></div>
+      <div class="cadnote" id="cadnote">Imported CAD — geometry preview. Live field prediction on arbitrary CAD is on our roadmap (surface-encoder model).</div>
+      <div class="cadnote" id="promptBar" style="background:rgba(11,176,194,.1);border-color:rgba(11,176,194,.4);color:#0b7f8c">Geometry loaded — click <b>Predict field</b> to run the simulation.</div>
+      <div class="overlay" id="overlay"><span><span class="spinner"></span>Loading model…</span></div>
+    </div>
+    <div class="rail right">
+      <div class="sec"><div class="ey">Measurements</div><div class="mlist">
+        <div class="m"><span class="k">Accuracy vs CFD</span><span class="v ok" id="mRmse">—</span></div>
+        <div class="m"><span class="k" id="mBClab">Wall / ambient</span><span class="v" id="mBC">—</span></div>
+      </div></div>
+      <div class="sec"><div class="ey">SIMSHIFT benchmark</div>
+        <div class="sota">
+          <div class="sotahd"><span>Model · OOD-medium</span><span>Temp RMSE ↓</span></div>
+          <div class="sotar"><span>PointNet</span><span>17.43 K</span></div>
+          <div class="sotar"><span>Transolver</span><span>13.43 K</span></div>
+          <div class="sotar"><span>UPT<em>prev. best</em></span><span>12.41 K</span></div>
+          <div class="sotar best"><span>Kuber Nano</span><span>12.14 K</span></div>
+        </div>
+        <div class="sotanote"><b>Zero-shot</b> on unseen OOD geometries, <b>no domain adaptation</b> — beats UPT on temperature &amp; SOTA on velocity (0.038 m/s).</div>
+        <button class="sotabtn" id="benchBtn">Full benchmark — velocity, pressure ↗</button>
+      </div>
+      <div class="sec"><div class="ey">Validation</div><div class="badges">
+        <div class="badge"><span class="d"></span>Zero gradient explosions · zero NaN/Inf</div>
+        <div class="badge"><span class="d"></span>Self-generated, commercial-safe OpenFOAM data</div>
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- modals -->
+<div class="scrim" id="addScrim"><div class="modal"><div class="mhd"><h3>Add geometry</h3><button class="x" data-close>×</button></div>
+  <div class="mtabs"><button data-tab="lib" class="on">Preset library</button><button data-tab="cad">Import CAD</button></div>
+  <div class="mbody"><div id="tabLib"><div class="lib" id="libGrid"></div></div>
+    <div id="tabCad" style="display:none"><label class="drop">Drop a heatsink <b>.stl</b> here, or<br><span class="filebtn">Choose file<input type="file" id="stlInput" accept=".stl"></span></label>
+      <div class="note">Heatsink STLs exported from the <b>Preset library</b> (⤓ STL) are recognised on import — they load fully editable with CFD ground truth, so you can predict and compare against the real simulation. Arbitrary third-party CAD renders as a geometry preview (live field prediction on unseen CAD is on our roadmap).</div></div></div></div></div>
+<div class="scrim" id="benchScrim"><div class="modal" style="width:min(720px,95vw)"><div class="mhd"><h3>SIMSHIFT public benchmark — full metrics</h3><button class="x" data-close>×</button></div>
+  <div class="mbody">
+    <div class="benchwrap"><table class="bench">
+      <thead><tr><th>Model</th><th>Params</th><th>Zero&#8209;shot</th><th>Temp&nbsp;RMSE&nbsp;(K)</th><th>Velocity&nbsp;RMSE&nbsp;(m/s)</th><th>Pressure&nbsp;RMSE&nbsp;(Pa)</th><th>mean&nbsp;nRMSE</th></tr></thead>
+      <tbody>
+        <tr><td>PointNet</td><td>~14 M</td><td class="no">✗</td><td>17.43</td><td>0.044</td><td>n/r</td><td>n/r</td></tr>
+        <tr><td>Transolver</td><td>~14 M</td><td class="no">✗</td><td>13.43</td><td>0.041</td><td>n/r</td><td>n/r</td></tr>
+        <tr><td>UPT <span class="prev">prev. best</span></td><td>~14 M</td><td class="no">✗</td><td>12.41</td><td>0.039</td><td>n/r</td><td>n/r</td></tr>
+        <tr class="us"><td>Kuber Nano</td><td>~14 M</td><td class="yes">✓</td><td class="win">12.14</td><td class="win">0.038</td><td>1909</td><td>0.593</td></tr>
+      </tbody>
+    </table></div>
+    <div class="note">Official SIMSHIFT heatsink split (source fins 5–8 → <b>zero-shot on unseen OOD fins 10–12</b>), paper's metrics, lower is better. The published baselines <b>adapt to the target domain (UDA)</b> using target data — so they are <b>not zero-shot</b>; the paper also reports only their temperature + velocity (no pressure, mean-nRMSE, or params → "n/r"). <b>Kuber Nano trains from scratch on the source split and is evaluated zero-shot</b>, predicting the full 5-channel field — beating the previous best on <b>temperature (12.14 vs 12.41 K)</b> and setting <b>SOTA velocity (0.038 vs 0.039 m/s)</b> on geometries it never trained on. Kuber Nano figures are the best across its geometry-encoder configs (SDF / surface).</div>
+  </div></div></div>
+<div class="scrim" id="inviteScrim"><div class="modal" style="width:min(420px,92vw)"><div class="mhd"><h3>Invite teammate</h3><button class="x" data-close>×</button></div>
+  <div class="mbody"><div class="field"><label>Name</label><input id="invName" placeholder="Ada Lovelace"></div><div class="field"><label>Email</label><input id="invEmail" placeholder="ada@kuber.ai"></div>
+    <div class="field"><label>Role</label><select id="invRole"><option>Engineer</option><option>Reviewer</option><option>Admin</option></select></div>
+    <button class="prim" id="invSend">Send invite</button><div class="note">Workspace &amp; team are stored locally for this demo (no external accounts are contacted).</div></div></div></div>
+
+<script src="/static/vendor/three.min.js"></script>
+<script src="/static/vendor/OrbitControls.js"></script>
+<script src="/static/vendor/STLLoader.js"></script>
+<script>
+// ===== colormaps =====
+const LUT={
+ thermal:[[49,54,149],[69,117,180],[116,173,209],[171,217,233],[224,243,248],[254,224,144],[253,174,97],[244,109,67],[215,48,39],[165,0,38]],
+ viridis:[[68,1,84],[72,40,120],[62,73,137],[49,104,142],[38,130,142],[31,158,137],[53,183,121],[110,206,88],[181,222,43],[253,231,37]],
+ coolwarm:[[59,76,192],[110,143,229],[176,196,241],[221,221,221],[244,193,164],[229,132,104],[180,50,50]],
+ plasma:[[13,8,135],[84,2,163],[139,10,165],[185,50,137],[219,92,104],[244,136,73],[254,188,43],[240,249,33]]};
+function cmap(t,name){const L=LUT[name];t=Math.max(0,Math.min(1,t));const x=t*(L.length-1),i=Math.floor(x),f=x-i,a=L[i],b=L[Math.min(i+1,L.length-1)];return [(a[0]+(b[0]-a[0])*f)/255,(a[1]+(b[1]-a[1])*f)/255,(a[2]+(b[2]-a[2])*f)/255];}
+function cmapFor(field){if(field==='T')return 'thermal';if(field==='velocity')return 'viridis';return 'plasma';}
+const FLAB={T:'T',velocity:'|U|',p_rgh:'p'};
+// Kuber mark — contour (cyclic) integral ∮ : flux through a closed surface, the core of CFD
+const LOGO_SVG=`<svg viewBox="0 0 40 60" fill="none" role="img" aria-label="Kuber">
+ <g stroke="#16202b" fill="none" stroke-linecap="round">
+  <circle cx="20" cy="30" r="12.5" stroke-width="2.1"/>
+  <path d="M28 12 C28 7 22.5 6.5 22 12 C21.4 18 19 42 18.5 48 C18 53.5 12.5 53 12 48" stroke-width="2.6" stroke-linejoin="round"/>
+ </g></svg>`;
+
+// ===== three.js =====
+const canvas=document.getElementById('canvas');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setClearColor(0x000000,0);renderer.autoClear=false;renderer.localClippingEnabled=true;
+const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(44,1,0.01,100);camera.up.set(0,0,1);
+const controls=new THREE.OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.dampingFactor=0.08;
+scene.add(new THREE.AmbientLight(0xffffff,0.85));
+const dl=new THREE.DirectionalLight(0xffffff,0.6);dl.position.set(3,-4,5);scene.add(dl);
+const dl2=new THREE.DirectionalLight(0xffffff,0.25);dl2.position.set(-3,2,-2);scene.add(dl2);
+// soft round sprite so points render as smooth particles, not square pixels
+const SPRITE=(function(){const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d');
+  const gr=g.createRadialGradient(32,32,0,32,32,32);gr.addColorStop(0,'rgba(255,255,255,1)');gr.addColorStop(0.55,'rgba(255,255,255,1)');gr.addColorStop(1,'rgba(255,255,255,0)');
+  g.fillStyle=gr;g.beginPath();g.arc(32,32,32,0,Math.PI*2);g.fill();return new THREE.CanvasTexture(c);})();
+// studio environment so aluminium reflects light -> realistic machined-metal look
+scene.add(new THREE.HemisphereLight(0xffffff,0x8f99a4,0.55));
+(function(){const c=document.createElement('canvas');c.width=16;c.height=96;const g=c.getContext('2d');
+  const gr=g.createLinearGradient(0,0,0,96);gr.addColorStop(0,'#ffffff');gr.addColorStop(0.5,'#ccd6df');gr.addColorStop(0.5,'#aeb8c2');gr.addColorStop(1,'#7c8894');
+  g.fillStyle=gr;g.fillRect(0,0,16,96);const t=new THREE.CanvasTexture(c);t.mapping=THREE.EquirectangularReflectionMapping;
+  const pm=new THREE.PMREMGenerator(renderer);pm.compileEquirectangularShader();scene.environment=pm.fromEquirectangular(t).texture;})();
+// gizmo scene
+const gscene=new THREE.Scene(),gcam=new THREE.PerspectiveCamera(50,1,0.1,10);gscene.add(new THREE.AxesHelper(0.9));
+let W=1,H=1;
+function resize(){W=canvas.clientWidth;H=canvas.clientHeight;renderer.setSize(W,H,false);camera.aspect=W/H;camera.updateProjectionMatrix();}
+window.addEventListener('resize',resize);
+// ===== state (declared BEFORE the render loop — the loop runs synchronously on first call) =====
+let cur=null,field='T',view='pred',rmode='surface',frame=null,cases=[];
+let pointsObj=null,hsGroup=null,hsGroupGT=null,cadObj=null,cf=null,tf_arr=null,trange=[0,1],selCase=null;
+let selPreset=null,pristine=false;   // selPreset=caseIndex when an UNEDITED preset is selected -> real CFD ground truth
+(function loop(){requestAnimationFrame(loop);controls.update();
+  renderer.setScissorTest(false);renderer.setViewport(0,0,W,H);renderer.clear();
+  if(rmode==='compare'&&hsGroupGT){
+    const half=W/2;camera.aspect=half/H;camera.updateProjectionMatrix();
+    if(pointsObj)pointsObj.visible=false;
+    hsGroupGT.visible=false;hsGroup.visible=true;                       // LEFT = Kuber.ai prediction
+    renderer.setViewport(0,0,half,H);renderer.setScissor(0,0,half,H);renderer.setScissorTest(true);renderer.render(scene,camera);
+    hsGroup.visible=false;hsGroupGT.visible=true;                       // RIGHT = CFD ground truth
+    renderer.setViewport(half,0,half,H);renderer.setScissor(half,0,half,H);renderer.render(scene,camera);
+    hsGroup.visible=true;hsGroupGT.visible=false;
+    renderer.setScissorTest(false);camera.aspect=W/H;camera.updateProjectionMatrix();
+  } else {
+    renderer.setViewport(0,0,W,H);renderer.render(scene,camera);
+  }
+  const s=84,p=16;renderer.setViewport(p,p,s,s);renderer.setScissor(p,p,s,s);renderer.setScissorTest(true);
+  gcam.position.copy(camera.position).sub(controls.target).normalize().multiplyScalar(2.6);gcam.up.copy(camera.up);gcam.lookAt(0,0,0);
+  renderer.render(gscene,gcam);renderer.setScissorTest(false);
+})();
+
+// ===== field values + color scale for the current field/view (shared by points, surface, compare) =====
+function pctile(sorted,q){const i=(sorted.length-1)*q,lo=Math.floor(i),hi=Math.ceil(i);return sorted[lo]+(sorted[hi]-sorted[lo])*(i-lo);}
+function fieldVals(fld,vw){const fd=cur.fields[fld];
+  const vals=vw==='err'?fd.pred.map((p,i)=>Math.abs(p-fd.gt[i])):(vw==='gt'?fd.gt:fd.pred);
+  let mn,mx;
+  if(vw==='err'){mn=0;mx=Math.max(...vals)||1;}
+  else{const s=vals.slice().sort((a,b)=>a-b);               // THIS view's own robust range
+    const q=(fld==='T')?0:0.01;                             // clip P & |U| to 1st–99th pct
+    mn=pctile(s,q);mx=pctile(s,1-q);
+    if(mx-mn<1e-6){const c=s[s.length>>1];mn=c-0.5;mx=c+0.5;}} // near-uniform field -> neutral mid-tone, not an extreme
+  return {vals,mn,mx,name:cmapFor(fld),unit:fd.unit};}
+function nearestVal(x,y,z,vals,stride){let best=1e18,bv=vals[0];for(let i=0,j=0;i<vals.length;i+=stride,j+=3*stride){const dx=cf[j]-x,dy=cf[j+1]-y,dz=cf[j+2]-z,d=dx*dx+dy*dy+dz*dz;if(d<best){best=d;bv=vals[i];}}return bv;}
+function computeFrame(coords){let mn=[1e9,1e9,1e9],mx=[-1e9,-1e9,-1e9];for(const p of coords)for(let k=0;k<3;k++){if(p[k]<mn[k])mn[k]=p[k];if(p[k]>mx[k])mx[k]=p[k];}return {c:[(mn[0]+mx[0])/2,(mn[1]+mx[1])/2,(mn[2]+mx[2])/2],s:1.6/(Math.max(mx[0]-mn[0],mx[1]-mn[1],mx[2]-mn[2])||1)};}
+function tf(p){return [(p[0]-frame.c[0])*frame.s,(p[1]-frame.c[1])*frame.s,(p[2]-frame.c[2])*frame.s];}
+function clearField(){[pointsObj,hsGroup,hsGroupGT,cadObj].forEach(o=>{if(o)scene.remove(o);});pointsObj=hsGroup=hsGroupGT=cadObj=null;const hl=document.getElementById('heatLbl');if(hl)hl.style.display='none';const cl=document.getElementById('cpLegend');if(cl)cl.style.display='none';}
+function buildSolidGroup(boxes){const grp=new THREE.Group();
+  for(const [lo,hi] of boxes){const c01=[(lo[0]+hi[0])/2,(lo[1]+hi[1])/2,(lo[2]+hi[2])/2],sz=[Math.abs(hi[0]-lo[0])||1e-4,Math.abs(hi[1]-lo[1])||1e-4,Math.abs(hi[2]-lo[2])||1e-4];
+    const seg=[Math.max(2,Math.round(sz[0]/0.04)),Math.max(2,Math.round(sz[1]/0.04)),Math.max(2,Math.round(sz[2]/0.04))];
+    const bg=new THREE.BoxGeometry(sz[0],sz[1],sz[2],seg[0],seg[1],seg[2]);
+    bg.setAttribute('color',new THREE.BufferAttribute(new Float32Array(bg.attributes.position.count*3),3));
+    const mesh=new THREE.Mesh(bg,new THREE.MeshStandardMaterial({vertexColors:true,metalness:0.35,roughness:0.38,envMapIntensity:0.8}));mesh.position.set(...c01);grp.add(mesh);
+    const eg=new THREE.LineSegments(new THREE.EdgesGeometry(bg,25),new THREE.LineBasicMaterial({color:0x2c353f,transparent:true,opacity:0.3}));eg.position.set(...c01);grp.add(eg);}
+  grp.scale.setScalar(frame.s);grp.position.set(-frame.c[0]*frame.s,-frame.c[1]*frame.s,-frame.c[2]*frame.s);return grp;}
+function updateCompareUI(){const cmp=rmode==='compare'&&cur&&cur.hasGT;document.getElementById('cmpUI').style.display=cmp?'block':'none';
+  if(!cmp)return;const m=cur.metrics,el=document.getElementById('cmpAcc');
+  if(field==='velocity'){const fd=cur.fields.velocity;let s=0;for(let i=0;i<fd.pred.length;i++)s+=(fd.pred[i]-fd.gt[i])**2;const rmse=Math.sqrt(s/fd.pred.length);
+    el.innerHTML='Velocity agreement &nbsp;<b>±'+rmse.toFixed(3)+' m/s RMSE</b>&nbsp; · &nbsp;max '+Math.max(...fd.pred).toFixed(2)+' vs '+Math.max(...fd.gt).toFixed(2)+' m/s CFD';}
+  else{el.innerHTML='Temperature agreement &nbsp;<b>±'+m.T_rmse+' K RMSE</b>&nbsp; · &nbsp;peak '+m.peak_T+' K vs '+m.peak_T_gt+' K CFD';}}
+function nearestT(x,y,z){let best=1e18,bt=trange[0];for(let i=0,j=0;i<tf_arr.length;i++,j+=3){const dx=cf[j]-x,dy=cf[j+1]-y,dz=cf[j+2]-z,d=dx*dx+dy*dy+dz*dz;if(d<best){best=d;bt=tf_arr[i];}}return bt;}
+
+function buildScene(){
+  clearField();
+  const _bp=[];cur.boxes.forEach(([lo,hi])=>{_bp.push(lo,hi);});frame=computeFrame(_bp);
+  const n=cur.coords.length;cf=new Float32Array(n*3);tf_arr=new Float32Array(n);
+  const Tp=cur.fields.T.pred;for(let i=0;i<n;i++){cf[3*i]=cur.coords[i][0];cf[3*i+1]=cur.coords[i][1];cf[3*i+2]=cur.coords[i][2];tf_arr[i]=Tp[i];}
+  trange=[Math.min(...Tp),Math.max(...Tp)];
+  // points
+  const pos=new Float32Array(n*3);for(let i=0;i<n;i++){const v=tf(cur.coords[i]);pos[3*i]=v[0];pos[3*i+1]=v[1];pos[3*i+2]=v[2];}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));g.setAttribute('color',new THREE.BufferAttribute(new Float32Array(n*3),3));
+  pointsObj=new THREE.Points(g,new THREE.PointsMaterial({size:0.04,vertexColors:true,sizeAttenuation:true,map:SPRITE,alphaTest:0.45,transparent:true,depthWrite:true}));scene.add(pointsObj);
+  // solid heatsink surface-colored per field/view; build a GT twin when CFD ground truth exists
+  hsGroup=buildSolidGroup(cur.boxes);scene.add(hsGroup);
+  if(cur.hasGT){hsGroupGT=buildSolidGroup(cur.boxes);hsGroupGT.visible=false;scene.add(hsGroupGT);}
+  camera.position.set(1.9,-2.4,1.5);controls.target.set(0,0,0.05);controls.update();
+  applyMode();applyClip();
+  document.getElementById('hudId').textContent=(cur.case_id||'custom').replace('case_','case ')+' · '+(cur.device==='coldplate'?'cold plate':((cur.fins||'—')+' fins'));
+  document.getElementById('hudPts').textContent=cur.n_points.toLocaleString()+' nodes'+(cur.device==='coldplate'?' · coolant channel':'');
+  if(cur.device==='coldplate')document.getElementById('cpLegend').style.display='block';
+}
+function cmpAvailable(){return !!(cur&&cur.hasGT);}
+function syncCmp(){const ok=cmpAvailable();document.getElementById('cmpBtn').disabled=!ok;
+  if(!ok&&rmode==='compare'){rmode='surface';setOn('vswitch',document.querySelector('#vswitch button[data-r="surface"]'));}}
+function applyMode(){
+  if(!hsGroup)return;
+  syncCmp();
+  const pts=rmode==='points';
+  const cp=cur&&cur.device==='coldplate';   // cold-plate solid ENCLOSES the fluid -> ghost it so the interior coolant cloud shows
+  if(pointsObj)pointsObj.visible=pts;
+  hsGroup.visible=true;
+  hsGroup.children.forEach(m=>{if(m.type==='Mesh'&&!m.userData.heated){m.material.opacity=pts?(cp?0.06:0.85):1;m.material.transparent=pts;}
+    else if(m.type==='LineSegments'&&!m.userData.flow){m.material.opacity=pts&&cp?0.55:0.3;}});
+  if(hsGroupGT)hsGroupGT.children.forEach(m=>{if(m.type==='Mesh'&&!m.userData.heated){m.material.opacity=cp&&pts?0.06:1;m.material.transparent=cp&&pts;}});
+  updateCompareUI();
+  if(pts&&cur)recolorPoints();
+  else if(cur)recolorSurface();     // surface + compare both colored per current field/view
+}
+function recolorPoints(){if(!cur||!pointsObj)return;const {vals,mn,mx,name,unit}=fieldVals(field,view);const rng=(mx-mn)||1,col=pointsObj.geometry.getAttribute('color');for(let i=0;i<vals.length;i++){const c=cmap((vals[i]-mn)/rng,name);col.setXYZ(i,c[0],c[1],c[2]);}col.needsUpdate=true;setCbar(name,mn,mx,(view==='err'?'Δ':'')+FLAB[field]+' '+unit);}
+function colorGroup(grp,vals,mn,rng,name,stride){grp.children.forEach(m=>{if(m.type!=='Mesh')return;const pa=m.geometry.attributes.position,col=m.geometry.attributes.color,o=m.position;for(let v=0;v<pa.count;v++){const val=nearestVal(o.x+pa.getX(v),o.y+pa.getY(v),o.z+pa.getZ(v),vals,stride);const c=cmap((val-mn)/rng,name);col.setXYZ(v,c[0],c[1],c[2]);}col.needsUpdate=true;});}
+function recolorSurface(){if(!cur||!hsGroup)return;const {vals,mn,mx,name,unit}=fieldVals(field,view);const rng=(mx-mn)||1,stride=Math.max(1,Math.ceil(vals.length/5000));colorGroup(hsGroup,vals,mn,rng,name,stride);
+  // compare mode: LEFT solid = prediction, RIGHT solid = CFD truth, on ONE shared scale
+  if(rmode==='compare'&&hsGroupGT){const P=fieldVals(field,'pred'),G=fieldVals(field,'gt');const smn=Math.min(P.mn,G.mn),smx=Math.max(P.mx,G.mx),srng=(smx-smn)||1;colorGroup(hsGroup,P.vals,smn,srng,name,stride);colorGroup(hsGroupGT,G.vals,smn,srng,name,stride);setCbar(name,smn,smx,FLAB[field]+' '+unit);}
+  else setCbar(name,mn,mx,(view==='err'?'Δ':'')+FLAB[field]+' '+unit);}
+function fmt(x){return Math.abs(x)>=100?x.toFixed(0):Math.abs(x)>=1?x.toFixed(1):x.toFixed(3);}
+function setCbar(name,mn,mx,label){const cx=document.getElementById('cbar'),g=cx.getContext('2d'),h=cx.height;for(let y=0;y<h;y++){const c=cmap(1-y/h,name);g.fillStyle=`rgb(${c[0]*255|0},${c[1]*255|0},${c[2]*255|0})`;g.fillRect(0,y,14,1);}document.getElementById('cbMin').textContent=fmt(mn);document.getElementById('cbMax').textContent=fmt(mx);document.getElementById('cbField').textContent=label;}
+const CFD_SEC=995;    // measured OpenFOAM buoyantSimpleFoam ExecutionTime (s) per heatsink case (our BSF pipeline, ~1000 iters)
+const CFD_SEC_CP=62;  // measured per cold-plate case (structured blockMesh duct, ~1000 iters — much faster)
+function fmtSpeed(x){return x>=1000?(x/1000).toFixed(x>=9500?0:1)+'k':String(Math.round(x));}
+function updateMetrics(){const m=cur.metrics;const sec=cur.infer_ms/1000;const cp=cur.device==='coldplate';const cfd=cp?CFD_SEC_CP:CFD_SEC;
+  document.getElementById('mcTime').innerHTML=sec.toFixed(3)+'<small> s</small>';
+  document.getElementById('mcCfd').innerHTML=cfd.toLocaleString()+'<small> s</small>';
+  document.getElementById('mcSpd').innerHTML=fmtSpeed(cfd/sec)+'<small>×</small>';
+  document.getElementById('mcTemp').innerHTML=m.peak_T+'<small> K</small>';
+  document.getElementById('mBClab').textContent=cp?'Heat flux / inlet':'Wall / ambient';
+  document.getElementById('mBC').innerHTML=cp?((m.heatFlux/1000).toFixed(0)+' / '+m.envTemp+'<small>kW/m²·K</small>'):(m.solidTemp+' / '+m.envTemp+'<small>K</small>');}
+
+async function previewGeometry(ci){
+  selCase=ci;
+  const geo=await (await fetch('/api/geometry/'+ci)).json();
+  clearField();
+  document.getElementById('cards').style.display='none';document.getElementById('cadnote').style.display='none';document.getElementById('overlay').classList.add('hide');
+  const pts=[];geo.boxes.forEach(([lo,hi])=>{pts.push(lo,hi);});frame=computeFrame(pts);
+  hsGroup=new THREE.Group();
+  for(const [lo,hi] of geo.boxes){const c01=[(lo[0]+hi[0])/2,(lo[1]+hi[1])/2,(lo[2]+hi[2])/2],sz=[Math.abs(hi[0]-lo[0])||1e-4,Math.abs(hi[1]-lo[1])||1e-4,Math.abs(hi[2]-lo[2])||1e-4];
+    const bg=new THREE.BoxGeometry(sz[0],sz[1],sz[2]);
+    const mesh=new THREE.Mesh(bg,new THREE.MeshStandardMaterial({color:0xccd3da,metalness:0.9,roughness:0.28,envMapIntensity:1.0}));mesh.position.set(...c01);hsGroup.add(mesh);
+    const eg=new THREE.LineSegments(new THREE.EdgesGeometry(bg),new THREE.LineBasicMaterial({color:0x36404b,transparent:true,opacity:0.4}));eg.position.set(...c01);hsGroup.add(eg);}
+  hsGroup.scale.setScalar(frame.s);hsGroup.position.set(-frame.c[0]*frame.s,-frame.c[1]*frame.s,-frame.c[2]*frame.s);scene.add(hsGroup);
+  camera.position.set(1.9,-2.4,1.5);controls.target.set(0,0,0.05);controls.update();canvas.style.opacity=1;
+  document.getElementById('promptBar').style.display='block';
+  document.getElementById('hudId').textContent=geo.case_id.replace('case_','case ')+' · '+(geo.device==='coldplate'?'cold plate':'heatsink');
+  document.getElementById('hudPts').textContent='geometry — not solved';
+  ['mRmse','mBC'].forEach(id=>document.getElementById(id).innerHTML='—');cur=null;resetCompare();
+}
+let editDevice='heatsink';
+function setEditDevice(d){editDevice=d;const ex=document.getElementById('exportSec');if(ex)ex.style.display=d==='coldplate'?'none':'';}
+function runPredict(){if(pristine&&selPreset!=null)predict(selPreset);else if(editDevice==='coldplate')predictCustomCP();else predictCustom();}
+async function predict(i){
+  const btn=document.getElementById('predictBtn'),ov=document.getElementById('overlay');
+  document.getElementById('cadnote').style.display='none';document.getElementById('promptBar').style.display='none';document.getElementById('cards').style.display='';
+  btn.disabled=true;ov.classList.remove('hide');ov.innerHTML='<span><span class="spinner"></span>Solving field & comparing to CFD…</span>';canvas.style.opacity=0;
+  cur=await (await fetch('/api/predict/'+i)).json();cur.hasGT=true;
+  buildScene();updateMetrics();applyGTui();
+  ov.classList.add('hide');btn.disabled=false;requestAnimationFrame(()=>canvas.style.opacity=1);
+}
+// unify the "GT available?" UI for both preset (real CFD) and custom (no ref) predictions
+function applyGTui(){const gt=cur&&cur.hasGT;
+  document.querySelectorAll('#viewSeg button').forEach(b=>{if(b.dataset.v!=='pred')b.style.display=gt?'':'none';});
+  if(!gt&&view!=='pred'){view='pred';setOn('viewSeg',document.querySelector('#viewSeg button[data-v="pred"]'));}
+  document.getElementById('mRmse').innerHTML=gt?('±'+cur.metrics.T_rmse+'<small>K vs CFD</small>'):'<small>custom — no CFD ref</small>';
+  document.getElementById('mRmse').className='v'+(gt?' ok':'');
+  // custom geometry has no CFD solve -> hide CFD-time + speed-up cards (we don't have that data for it)
+  document.getElementById('mcCfd').closest('.mc').style.display=gt?'':'none';
+  document.getElementById('mcSpd').closest('.mc').style.display=gt?'':'none';
+  document.getElementById('xbadge').style.display=(cur&&cur.extrapolated)?'block':'none';
+  applyMode();}
+function showCond(c){document.getElementById('condBox').innerHTML=row('Fins',c.fins)+row('Length',(c.length*1000).toFixed(0)+' mm')+row('Width',(c.width*1000).toFixed(0)+' mm')+row('Fin height',(c.height2*1000).toFixed(0)+' mm')+row('Wall temp',c.solidTemp+' K')+row('Ambient',c.envTemp+' K');}
+function row(k,v){return `<div class="cond"><span>${k}</span><b>${v}</b></div>`;}
+function showCAD(buf,name){clearField();document.getElementById('overlay').classList.add('hide');document.getElementById('cards').style.display='none';
+  const geo=new THREE.STLLoader().parse(buf);geo.computeBoundingBox();geo.center();const sz=geo.boundingBox.getSize(new THREE.Vector3()),sc=1.6/Math.max(sz.x,sz.y,sz.z);
+  cadObj=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:0x9aa7b3,metalness:0.15,roughness:0.5,flatShading:true}));cadObj.scale.setScalar(sc);scene.add(cadObj);
+  camera.position.set(1.9,-2.4,1.5);controls.target.set(0,0,0);controls.update();canvas.style.opacity=1;
+  document.getElementById('cadnote').style.display='block';document.getElementById('hudId').textContent=name;document.getElementById('hudPts').textContent='imported CAD';cur=null;resetCompare();}
+
+// ===== cross-section clip + scenario =====
+let clipAxis='off',clipPos=0;const clipPlane=new THREE.Plane(new THREE.Vector3(-1,0,0),1);
+function applyClip(){const on=clipAxis!=='off';const planes=on?[clipPlane]:[];
+  if(on){const n={x:[-1,0,0],y:[0,-1,0],z:[0,0,-1]}[clipAxis];clipPlane.normal.set(n[0],n[1],n[2]);clipPlane.constant=clipPos/100*0.95;}
+  if(pointsObj)pointsObj.material.clippingPlanes=planes;
+  [hsGroup,hsGroupGT].forEach(gr=>{if(gr)gr.children.forEach(m=>{if(m.material)m.material.clippingPlanes=planes;});});
+  if(cadObj)cadObj.material.clippingPlanes=planes;}
+const SCEN={
+  all:{dev:null,info:[['Devices','Heatsinks + cold plates'],['Fluids','Air · water · glycol · oil'],['Model','One surrogate, all shapes']]},
+  natural:{dev:'heatsink',info:[['Fluid','Air'],['Air density','1.18 kg/m³'],['Ambient','300 K'],['Regime','Buoyancy-driven'],['Heat in','Wall temperature (chip)']]},
+  liquid:{dev:'coldplate',info:[['Coolant','Water / glycol / oil'],['Regime','Forced convection'],['Channel','Rectangular microchannel'],['Heat in','Base heat-flux (chip)'],['Drives','Pressure drop + ΔT']]},
+};
+let scenDev=null;   // null = show all device types in the Add-geometry library
+function renderScen(){const s=document.getElementById('scenSel').value,S=SCEN[s]||SCEN.all;scenDev=S.dev;
+  document.getElementById('scenInfo').innerHTML=S.info.map(([k,v])=>`<div class="cond"><span>${k}</span><b>${v}</b></div>`).join('');}
+
+// ===== parameter editor (adjust geometry + wall temp -> custom predict) =====
+const PARAMS=[
+ {k:'fins',lab:'Fins',min:5,max:20,step:1,unit:'',mm:false},
+ {k:'height2',lab:'Fin height',min:10,max:60,step:1,unit:'mm',mm:true},
+ {k:'thickness_fins',lab:'Fin thickness',min:1,max:8,step:0.5,unit:'mm',mm:true},
+ {k:'gap',lab:'Gap',min:3,max:30,step:0.5,unit:'mm',mm:true},
+ {k:'length',lab:'Length',min:40,max:160,step:5,unit:'mm',mm:true},
+ {k:'height1',lab:'Base thickness',min:2,max:12,step:0.5,unit:'mm',mm:true},
+ {k:'solidTemp',lab:'Wall temp',min:320,max:420,step:1,unit:'K',mm:false},
+];
+function fmtP(v,pp){return pp.k==='fins'?String(Math.round(v)):((pp.step<1?v.toFixed(1):v.toFixed(0))+(pp.unit?' '+pp.unit:''));}
+function renderEditor(cond){const e=document.getElementById('editor');e.innerHTML='';
+  PARAMS.forEach(pp=>{let disp=pp.mm?cond[pp.k]*1000:cond[pp.k];disp=Math.min(pp.max,Math.max(pp.min,disp));
+    const row=document.createElement('div');row.className='prow';
+    row.innerHTML=`<span class="pl">${pp.lab}</span><span class="pvv" id="pv_${pp.k}">${fmtP(disp,pp)}</span><input type="range" id="pr_${pp.k}" min="${pp.min}" max="${pp.max}" step="${pp.step}" value="${disp}">`;
+    e.appendChild(row);
+    row.querySelector('input').addEventListener('input',ev=>{document.getElementById('pv_'+pp.k).textContent=fmtP(+ev.target.value,pp);pristine=false;setPromptPreset(false);livePreview();});});
+  const wr=document.createElement('div');wr.className='prow';wr.innerHTML='<span class="pl">Base width</span><span class="pvv" id="pv_width">—</span>';e.appendChild(wr);updateDerived();}
+function updateDerived(){const el=document.getElementById('pv_width');if(el)el.textContent=(getParams().width*1000).toFixed(0)+' mm · auto';}
+function getParams(){const p={};PARAMS.forEach(pp=>{let v=+document.getElementById('pr_'+pp.k).value;p[pp.k]=pp.mm?v/1000:v;});p.fins=Math.round(p.fins);p.width=p.fins*p.thickness_fins+(p.fins-1)*p.gap;return p;}
+function boxesFromParams(p){const L=p.length,W=p.width,t=p.thickness_fins,g=p.gap,f=p.fins,h1=p.height1,h2=p.height2;const b=[[[-L/2,-W/2,0],[L/2,W/2,h1]]];let y0=-W/2;for(let k=0;k<f;k++){const ys=y0+k*(t+g);b.push([[-L/2,ys,h1],[L/2,ys+t,h1+h2]]);}return b;}
+function previewFromBoxes(boxes){clearField();document.getElementById('cards').style.display='none';document.getElementById('cadnote').style.display='none';document.getElementById('xbadge').style.display='none';document.getElementById('overlay').classList.add('hide');
+  const pts=[];boxes.forEach(([lo,hi])=>{pts.push(lo,hi);});frame=computeFrame(pts);
+  hsGroup=new THREE.Group();
+  for(const [lo,hi] of boxes){const c01=[(lo[0]+hi[0])/2,(lo[1]+hi[1])/2,(lo[2]+hi[2])/2],sz=[Math.abs(hi[0]-lo[0])||1e-4,Math.abs(hi[1]-lo[1])||1e-4,Math.abs(hi[2]-lo[2])||1e-4];
+    const bg=new THREE.BoxGeometry(sz[0],sz[1],sz[2]);
+    const mesh=new THREE.Mesh(bg,new THREE.MeshStandardMaterial({color:0xccd3da,metalness:0.9,roughness:0.28,envMapIntensity:1.0}));mesh.position.set(...c01);hsGroup.add(mesh);
+    const eg=new THREE.LineSegments(new THREE.EdgesGeometry(bg),new THREE.LineBasicMaterial({color:0x36404b,transparent:true,opacity:0.4}));eg.position.set(...c01);hsGroup.add(eg);}
+  addHeatedBase(hsGroup,boxes,'heatsink');
+  hsGroup.scale.setScalar(frame.s);hsGroup.position.set(-frame.c[0]*frame.s,-frame.c[1]*frame.s,-frame.c[2]*frame.s);scene.add(hsGroup);
+  camera.position.set(1.9,-2.4,1.5);controls.target.set(0,0,0.05);controls.update();canvas.style.opacity=1;
+  document.getElementById('promptBar').style.display='block';
+  document.getElementById('hudId').textContent=getParams().fins+' fins · editable';document.getElementById('hudPts').textContent='geometry — not solved';
+  ['mRmse','mBC'].forEach(id=>document.getElementById(id).innerHTML='—');cur=null;resetCompare();applyClip();}
+// ===== heated-base + flow-direction visualization (so a geometry reads as a cooling problem, not a bare metal block) =====
+function heatedSlab(boxes,device){
+  if(device==='coldplate'){const [lo,hi]=boxes[0];return [[lo[0],lo[1],lo[2]],[hi[0],lo[1]+(hi[1]-lo[1])*0.07,hi[2]]];}   // y-min duct wall = chip heat-flux
+  const b=boxes[0];return [[b[0][0],b[0][1],b[0][2]],[b[1][0],b[1][1],b[0][2]+(b[1][2]-b[0][2])*0.16]];}                    // base-slab underside = chip contact
+function addHeatedBase(grp,boxes,device){const [lo,hi]=heatedSlab(boxes,device);
+  const c=[(lo[0]+hi[0])/2,(lo[1]+hi[1])/2,(lo[2]+hi[2])/2],sz=[Math.abs(hi[0]-lo[0])||1e-4,Math.abs(hi[1]-lo[1])||1e-4,Math.abs(hi[2]-lo[2])||1e-4];
+  const bg=new THREE.BoxGeometry(sz[0],sz[1],sz[2]);
+  const m=new THREE.Mesh(bg,new THREE.MeshStandardMaterial({color:0xff5a2c,emissive:0xff3a0f,emissiveIntensity:0.6,metalness:0.1,roughness:0.45,transparent:true,opacity:0.97}));
+  m.position.set(...c);m.userData.heated=true;grp.add(m);
+  const eg=new THREE.LineSegments(new THREE.EdgesGeometry(bg),new THREE.LineBasicMaterial({color:0xffb08a,transparent:true,opacity:0.7}));eg.position.set(...c);eg.userData.flow=true;grp.add(eg);
+  document.getElementById('heatLbl').style.display='flex';}
+let showFlow=true;
+function addFlowArrow(grp,boxes,u_in){const [lo,hi]=boxes[0];const y=(lo[1]+hi[1])/2,z=(lo[2]+hi[2])/2,L=hi[0]-lo[0];
+  const un=Math.max(0,Math.min(1,((u_in||0.5)-0.1)/(2.5-0.1)));const len=L*(0.45+1.05*un);   // arrow length ∝ inlet speed
+  const a=new THREE.ArrowHelper(new THREE.Vector3(1,0,0),new THREE.Vector3(lo[0]-L*0.14,y,z),len,0x4bd6e0,Math.min(len*0.28,L*0.22),Math.min(len*0.16,L*0.12));
+  a.userData.flow=true;[a.line,a.cone].forEach(o=>{if(o&&o.material){o.material.transparent=true;o.material.opacity=0.5;o.material.depthWrite=false;}});
+  grp.add(a);}
+// metal plate housing around the coolant channel — so the channel reads as a BORE inside a plate, not a floating box
+function addPlateBody(grp,boxes){const [lo,hi]=boxes[0];const H=hi[1]-lo[1],W=hi[2]-lo[2];
+  const mb=H*1.4,mt=H*0.7,mz=W*0.8;                                       // base metal below, lid above, side walls
+  const p=[[lo[0],lo[1]-mb,lo[2]-mz],[hi[0],hi[1]+mt,hi[2]+mz]];
+  const c=[(p[0][0]+p[1][0])/2,(p[0][1]+p[1][1])/2,(p[0][2]+p[1][2])/2],sz=[p[1][0]-p[0][0],p[1][1]-p[0][1],p[1][2]-p[0][2]];
+  const bg=new THREE.BoxGeometry(sz[0],sz[1],sz[2]);
+  const m=new THREE.Mesh(bg,new THREE.MeshStandardMaterial({color:0xaeb8c2,metalness:0.55,roughness:0.42,transparent:true,opacity:0.1,depthWrite:false}));m.position.set(...c);m.userData.flow=true;grp.add(m);
+  const eg=new THREE.LineSegments(new THREE.EdgesGeometry(bg),new THREE.LineBasicMaterial({color:0x8b98a5,transparent:true,opacity:0.55}));eg.position.set(...c);eg.userData.flow=true;grp.add(eg);}
+// thin streaklines running the length of the channel -> shows liquid flowing THROUGH the internal channel
+function addStreaks(grp,boxes){const [lo,hi]=boxes[0];const H=hi[1]-lo[1],W=hi[2]-lo[2],ny=3,nz=4;
+  for(let a=0;a<ny;a++)for(let b=0;b<nz;b++){const y=lo[1]+H*(a+1)/(ny+1),z=lo[2]+W*(b+1)/(nz+1);
+    const geo=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(lo[0],y,z),new THREE.Vector3(hi[0],y,z)]);
+    const ln=new THREE.Line(geo,new THREE.LineBasicMaterial({color:0x4bd6e0,transparent:true,opacity:0.3}));ln.userData.flow=true;grp.add(ln);}}
+
+let previewT=null;
+function livePreview(){updateDerived();clearTimeout(previewT);previewT=setTimeout(()=>previewFromBoxes(boxesFromParams(getParams())),50);}
+
+// ===== cold-plate parameter editor (channel dims + coolant + chip heat-flux -> custom predict) =====
+const PARAMS_CP=[
+ {k:'L',lab:'Channel length',min:40,max:180,step:5,unit:'mm',mm:true},
+ {k:'W',lab:'Channel width',min:3,max:40,step:1,unit:'mm',mm:true},
+ {k:'H',lab:'Channel height',min:1,max:8,step:0.5,unit:'mm',mm:true},
+ {k:'q',lab:'Chip heat flux',min:10,max:400,step:5,unit:'kW/m²',scale:1000},   // stored as W/m²
+ {k:'u_in',lab:'Inlet velocity',min:0.1,max:2.5,step:0.1,unit:'m/s'},
+ {k:'T_in',lab:'Inlet temp',min:285,max:315,step:1,unit:'K'},
+];
+function fmtCP(v,pp){return (pp.step<1?v.toFixed(1):v.toFixed(0))+(pp.unit?' '+pp.unit:'');}
+function renderEditorCP(c){const e=document.getElementById('editor');e.innerHTML='';
+  const seed={L:c.Lmm/1000,W:c.Wmm/1000,H:c.Hmm/1000,q:c.heatFlux,u_in:c.u_in,T_in:c.envTemp};
+  PARAMS_CP.forEach(pp=>{let disp=pp.mm?seed[pp.k]*1000:(pp.scale?seed[pp.k]/pp.scale:seed[pp.k]);disp=Math.min(pp.max,Math.max(pp.min,disp));
+    const row=document.createElement('div');row.className='prow';
+    row.innerHTML=`<span class="pl">${pp.lab}</span><span class="pvv" id="pvc_${pp.k}">${fmtCP(disp,pp)}</span><input type="range" id="prc_${pp.k}" min="${pp.min}" max="${pp.max}" step="${pp.step}" value="${disp}">`;
+    e.appendChild(row);
+    row.querySelector('input').addEventListener('input',ev=>{document.getElementById('pvc_'+pp.k).textContent=fmtCP(+ev.target.value,pp);pristine=false;setPromptPreset(false);livePreviewCP();});});
+  const fr=document.createElement('div');fr.className='prow';
+  fr.innerHTML=`<span class="pl">Coolant</span><select id="prc_fluid" style="flex:1;margin-left:8px;background:#0e1620;color:#cdd6df;border:1px solid #26313c;border-radius:6px;padding:4px 6px">${['water','glycol','oil','air'].map(f=>`<option value="${f}"${f===(c.fluid||'water')?' selected':''}>${f[0].toUpperCase()+f.slice(1)}</option>`).join('')}</select>`;
+  e.appendChild(fr);
+  document.getElementById('prc_fluid').addEventListener('change',()=>{pristine=false;setPromptPreset(false);livePreviewCP();});
+  const tg=document.createElement('div');tg.className='prow';
+  tg.innerHTML=`<span class="pl">Flow arrow</span><label style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:#9fb0bd"><input type="checkbox" id="prc_flow"${showFlow?' checked':''} style="accent-color:#4bd6e0">show (scales with velocity)</label>`;
+  e.appendChild(tg);
+  document.getElementById('prc_flow').addEventListener('change',ev=>{showFlow=ev.target.checked;livePreviewCP();});}
+function getParamsCP(){const p={};PARAMS_CP.forEach(pp=>{let v=+document.getElementById('prc_'+pp.k).value;p[pp.k]=pp.mm?v/1000:(pp.scale?v*pp.scale:v);});p.fluid=document.getElementById('prc_fluid').value;return p;}
+function boxesFromParamsCP(p){return [[[0,0,0],[p.L,p.H,p.W]]];}                 // duct: x=length, y=height, z=width (matches backend)
+function previewFromBoxesCP(boxes){clearField();document.getElementById('cards').style.display='none';document.getElementById('cadnote').style.display='none';document.getElementById('xbadge').style.display='none';document.getElementById('overlay').classList.add('hide');
+  const _lo=boxes[0][0],_hi=boxes[0][1];                                    // FIXED scale (not auto-fit) so the length slider visibly changes length
+  frame={c:[(_lo[0]+_hi[0])/2,(_lo[1]+_hi[1])/2,(_lo[2]+_hi[2])/2],s:1.6/0.16};
+  hsGroup=new THREE.Group();
+  for(const [lo,hi] of boxes){const c01=[(lo[0]+hi[0])/2,(lo[1]+hi[1])/2,(lo[2]+hi[2])/2],sz=[Math.abs(hi[0]-lo[0])||1e-4,Math.abs(hi[1]-lo[1])||1e-4,Math.abs(hi[2]-lo[2])||1e-4];
+    const bg=new THREE.BoxGeometry(sz[0],sz[1],sz[2]);
+    const mesh=new THREE.Mesh(bg,new THREE.MeshStandardMaterial({color:0x4bd6e0,metalness:0.05,roughness:0.4,transparent:true,opacity:0.14,depthWrite:false}));mesh.position.set(...c01);hsGroup.add(mesh);   // translucent coolant channel
+    const eg=new THREE.LineSegments(new THREE.EdgesGeometry(bg),new THREE.LineBasicMaterial({color:0x8fb7bf,transparent:true,opacity:0.6}));eg.position.set(...c01);eg.userData.flow=true;hsGroup.add(eg);}
+  addPlateBody(hsGroup,boxes);addStreaks(hsGroup,boxes);addHeatedBase(hsGroup,boxes,'coldplate');if(showFlow)addFlowArrow(hsGroup,boxes,getParamsCP().u_in);
+  hsGroup.scale.setScalar(frame.s);hsGroup.position.set(-frame.c[0]*frame.s,-frame.c[1]*frame.s,-frame.c[2]*frame.s);scene.add(hsGroup);
+  camera.position.set(2.0,-2.3,1.4);controls.target.set(0,0,0);controls.update();canvas.style.opacity=1;
+  document.getElementById('promptBar').style.display='block';document.getElementById('cpLegend').style.display='block';
+  document.getElementById('hudId').textContent='cold plate · coolant channel · editable';document.getElementById('hudPts').textContent='straight rect channel — not solved';
+  ['mRmse','mBC'].forEach(id=>document.getElementById(id).innerHTML='—');cur=null;resetCompare();applyClip();}
+let previewTC=null;
+function livePreviewCP(){clearTimeout(previewTC);previewTC=setTimeout(()=>previewFromBoxesCP(boxesFromParamsCP(getParamsCP())),50);}
+async function predictCustomCP(){const p=getParamsCP(),btn=document.getElementById('predictBtn'),ov=document.getElementById('overlay');
+  btn.disabled=true;document.getElementById('promptBar').style.display='none';ov.classList.remove('hide');ov.innerHTML='<span><span class="spinner"></span>Solving coolant field…</span>';canvas.style.opacity=0;
+  const q=new URLSearchParams(p).toString();
+  cur=await (await fetch('/api/predict_cp?'+q)).json();
+  document.getElementById('cards').style.display='';buildScene();updateMetrics();applyGTui();
+  ov.classList.add('hide');btn.disabled=false;requestAnimationFrame(()=>canvas.style.opacity=1);}
+async function predictCustom(){const p=getParams(),btn=document.getElementById('predictBtn'),ov=document.getElementById('overlay');
+  btn.disabled=true;document.getElementById('promptBar').style.display='none';ov.classList.remove('hide');ov.innerHTML='<span><span class="spinner"></span>Solving field…</span>';canvas.style.opacity=0;
+  const q=new URLSearchParams(Object.fromEntries(Object.entries(p).map(([k,v])=>[k,v]))).toString();
+  cur=await (await fetch('/api/predict_custom?'+q)).json();
+  document.getElementById('cards').style.display='';buildScene();updateMetrics();applyGTui();
+  ov.classList.add('hide');btn.disabled=false;requestAnimationFrame(()=>canvas.style.opacity=1);}
+document.querySelectorAll('.exp').forEach(b=>b.onclick=()=>{const p=getParams();const q=new URLSearchParams(Object.assign({fmt:b.dataset.fmt},p)).toString();window.location.href='/api/export?'+q;});
+
+// ===== workspace (localStorage mock) =====
+const AVC=['#ff6b35','#4bd6e0','#5ac47f','#c98af6','#f6c945'];
+let WS=JSON.parse(localStorage.getItem('kuber_ws')||'null');
+function seedWS(){const cp=(cases.find(c=>c.device==='coldplate')||{}).index, hs=(cases.find(c=>c.device==='heatsink')||{}).index;
+  const g=[];if(hs!=null)g.push({kind:'preset',caseIndex:hs});if(cp!=null)g.push({kind:'preset',caseIndex:cp});
+  WS={v:2,activeProject:0,projects:[{name:'Electronics Cooling — Multi-geometry',geoms:g,updated:Date.now()},{name:'eVTOL Power Electronics',geoms:[],updated:Date.now()-6*3600e3}],team:[{name:'Shubh Jain',email:'sjain@kuber.ai',role:'Owner'},{name:'Alex Rivera',email:'alex@kuber.ai',role:'Engineer'}]};saveWS();}
+function saveWS(){try{localStorage.setItem('kuber_ws',JSON.stringify(WS,(k,v)=>k==='_buf'?undefined:v));}catch(e){}}
+/* seeded in init() after cases load (needs device info) */
+function proj(){return WS.projects[WS.activeProject];}
+function renderProjSel(){const s=document.getElementById('projSel');s.innerHTML='';WS.projects.forEach((p,i)=>{const o=document.createElement('option');o.value=i;o.textContent=p.name;s.appendChild(o);});s.value=WS.activeProject;}
+function renderTeam(){document.getElementById('avs').innerHTML=WS.team.map((m,i)=>`<div class="av" title="${m.name} · ${m.role}" style="background:${AVC[i%AVC.length]}">${m.name.split(' ').map(x=>x[0]).join('').slice(0,2)}</div>`).join('');}
+function geoLabel(g){if(g.kind==='cad')return {nm:g.name,sub:'imported CAD',tag:'CAD'};const c=cases[g.caseIndex];return {nm:c.title,sub:c.sub,tag:c.device==='coldplate'?'COLD PLATE':'HEATSINK'};}
+const FIN_SVG='<svg viewBox="0 0 16 16"><rect x="1" y="10" width="14" height="4"/><line x1="3" y1="10" x2="3" y2="3"/><line x1="6.5" y1="10" x2="6.5" y2="3"/><line x1="10" y1="10" x2="10" y2="3"/><line x1="13" y1="10" x2="13" y2="3"/></svg>';
+let selGeo=0;
+function renderGlist(){const gl=document.getElementById('glist'),gs=proj().geoms;gl.innerHTML=gs.length?'':'<div class="note" style="padding:2px">No geometries yet — click + Add.</div>';
+  gs.forEach((g,i)=>{const L=geoLabel(g),el=document.createElement('div');el.className='geo'+(i===selGeo?' on':'');el.innerHTML=`<div class="ic">${FIN_SVG}</div><div><div class="nm">${L.nm}</div><div class="sub">${L.sub}</div></div><div class="tag">${L.tag}</div>`;el.onclick=()=>selectGeo(i);gl.appendChild(el);});}
+function resetCompare(){if(rmode==='compare'){rmode='surface';setOn('vswitch',document.querySelector('#vswitch button[data-r="surface"]'));}document.getElementById('cmpBtn').disabled=true;document.getElementById('cmpUI').style.display='none';}
+function setPromptPreset(isPreset){document.getElementById('promptBar').innerHTML=isPreset?'Geometry loaded — click <b>Predict field</b> to run the model and compare vs CFD ground truth.':'Geometry loaded — click <b>Predict field</b> to run the simulation.';}
+function renderCondInfo(c){document.getElementById('editor').innerHTML='<div class="note" style="margin-bottom:8px">Cold-plate preset — fixed conditions (parametric editing for cold plates is on the roadmap).</div><div class="spec">'+[['Coolant',c.fluid],['Inlet temp',c.envTemp+' K'],['Heat flux',(c.heatFlux/1000).toFixed(0)+' kW/m²'],['Inlet velocity',c.u_in+' m/s']].map(([k,v])=>`<div class="cond"><span>${k}</span><b>${v}</b></div>`).join('')+'</div>';}
+function selectGeo(i){selGeo=i;renderGlist();const g=proj().geoms[i];
+  if(g.kind==='preset'){selPreset=g.caseIndex;pristine=true;const c=cases[g.caseIndex];
+    if(c.device==='coldplate'){setEditDevice('coldplate');renderEditorCP(c);previewFromBoxesCP(boxesFromParamsCP(getParamsCP()));setPromptPreset(true);}
+    else{setEditDevice('heatsink');renderEditor(c);previewFromBoxes(boxesFromParams(getParams()));setPromptPreset(true);}}
+  else if(g._buf){selPreset=null;pristine=false;showCAD(g._buf,g.name);}}
+
+document.getElementById('projSel').addEventListener('change',e=>{WS.activeProject=+e.target.value;saveWS();selGeo=0;renderGlist();if(proj().geoms[0])selectGeo(0);});
+document.getElementById('predictBtn').addEventListener('click',runPredict);
+document.getElementById('fieldSeg').addEventListener('click',e=>{if(e.target.dataset.f){field=e.target.dataset.f;setOn('fieldSeg',e.target);applyMode();}});
+document.getElementById('viewSeg').addEventListener('click',e=>{if(e.target.dataset.v){view=e.target.dataset.v;setOn('viewSeg',e.target);applyMode();}});
+document.getElementById('vswitch').addEventListener('click',e=>{if(e.target.dataset.r&&!e.target.disabled){rmode=e.target.dataset.r;setOn('vswitch',e.target);applyMode();}});
+document.getElementById('clipSeg').addEventListener('click',e=>{if(e.target.dataset.c){clipAxis=e.target.dataset.c;setOn('clipSeg',e.target);document.getElementById('clipPos').style.display=clipAxis==='off'?'none':'';applyClip();}});
+document.getElementById('clipPos').addEventListener('input',e=>{clipPos=+e.target.value;applyClip();});
+document.getElementById('scenSel').addEventListener('change',renderScen);
+function setOn(seg,btn){document.querySelectorAll('#'+seg+' button').forEach(b=>b.classList.remove('on'));btn.classList.add('on');}
+function openM(id){document.getElementById(id).classList.add('show');}function closeM(id){document.getElementById(id).classList.remove('show');}
+document.querySelectorAll('[data-close]').forEach(b=>b.onclick=e=>e.target.closest('.scrim').classList.remove('show'));
+document.querySelectorAll('.scrim').forEach(s=>s.onclick=e=>{if(e.target===s)s.classList.remove('show');});
+document.getElementById('addGeoBtn').onclick=()=>{renderLib();openM('addScrim');};
+document.getElementById('inviteBtn').onclick=()=>openM('inviteScrim');
+document.getElementById('benchBtn').onclick=()=>openM('benchScrim');
+document.querySelectorAll('.mtabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.mtabs button').forEach(x=>x.classList.remove('on'));b.classList.add('on');document.getElementById('tabLib').style.display=b.dataset.tab==='lib'?'':'none';document.getElementById('tabCad').style.display=b.dataset.tab==='cad'?'':'none';});
+function renderLib(){const lg=document.getElementById('libGrid');lg.innerHTML='';
+  const shown=cases.map((c,i)=>[c,i]).filter(([c])=>!scenDev||c.device===scenDev);
+  if(!shown.length){lg.innerHTML='<div class="note" style="padding:8px">No geometries match this scenario.</div>';}
+  shown.forEach(([c,i])=>{const d=document.createElement('div');d.className='libc';
+  const tag=`<span class="devtag ${c.device}">${c.device==='coldplate'?'COLD PLATE':'HEATSINK'}</span>`;
+  const dl=c.device==='coldplate'?'':`<button class="libdl" title="Download STL (re-importable, keeps CFD ground truth)">⤓ STL</button>`;
+  d.innerHTML=`<div class="t">${c.title} <span class="gtpill">CFD ✓</span></div><div class="s">${c.sub}</div>${tag}${dl}`;
+  if(c.device!=='coldplate')d.querySelector('.libdl').onclick=e=>{e.stopPropagation();window.location.href='/api/stl/'+i;};
+  d.onclick=()=>{proj().geoms.push({kind:'preset',caseIndex:i});saveWS();closeM('addScrim');selectGeo(proj().geoms.length-1);};
+  lg.appendChild(d);});}
+function stlSolidName(buf){try{const head=new TextDecoder('utf-8',{fatal:false}).decode(new Uint8Array(buf,0,160));const m=head.match(/solid\s+(\S+)/i);return m?m[1]:null;}catch(_){return null;}}
+function matchCase(nm){if(!nm)return null;const m=/kuber_(case_\d+)/i.exec(nm);if(!m)return null;const i=cases.findIndex(c=>c.id===m[1]);return i>=0?i:null;}
+document.getElementById('stlInput').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();
+  r.onload=()=>{const buf=r.result,ci=matchCase(stlSolidName(buf));
+    if(ci!=null){proj().geoms.push({kind:'preset',caseIndex:ci});saveWS();closeM('addScrim');renderGlist();selectGeo(proj().geoms.length-1);}
+    else{proj().geoms.push({kind:'cad',name:f.name,_buf:buf});saveWS();closeM('addScrim');renderGlist();selectGeo(proj().geoms.length-1);}};
+  r.readAsArrayBuffer(f);});
+document.getElementById('invSend').onclick=()=>{const n=document.getElementById('invName').value.trim();if(!n)return;WS.team.push({name:n,email:document.getElementById('invEmail').value,role:document.getElementById('invRole').value});saveWS();renderTeam();closeM('inviteScrim');document.getElementById('invName').value=document.getElementById('invEmail').value='';};
+
+// ===== projects landing =====
+let pnav='recent';
+function relTime(ts){if(!ts)return 'Edited just now';const s=(Date.now()-ts)/1000;if(s<90)return 'Edited just now';const m=s/60;if(m<60)return 'Edited '+Math.floor(m)+' min ago';const h=m/60;if(h<24)return 'Edited '+Math.floor(h)+' hour'+(h<2?'':'s')+' ago';const d=Math.floor(h/24);return 'Edited '+d+' day'+(d<2?'':'s')+' ago';}
+const TRASH='<svg viewBox="0 0 20 20"><path d="M4 6h12M8 6V4h4v2M6 6l1 10h6l1-10"/></svg>';
+function renderProjects(){const grid=document.getElementById('pGrid');grid.innerHTML='';
+  document.getElementById('pTitle').textContent=pnav==='recent'?'Recent Projects':'All Projects';
+  const order=WS.projects.map((p,i)=>({p,i})).sort((a,b)=>(b.p.updated||0)-(a.p.updated||0));
+  order.forEach(({p,i})=>{const c=document.createElement('div');c.className='pcard';
+    c.innerHTML=`<div class="pthumb"><div class="sphere"></div></div><div class="pinfo"><div><div class="pt">${p.name}</div><div class="ped">${relTime(p.updated)} · ${p.geoms.length} geometr${p.geoms.length===1?'y':'ies'}</div></div><button class="pdel" title="Delete">${TRASH}</button></div>`;
+    c.onclick=()=>openProject(i);
+    c.querySelector('.pdel').onclick=e=>{e.stopPropagation();if(confirm('Delete project "'+p.name+'"?')){WS.projects.splice(i,1);if(!WS.projects.length)seedWS();if(WS.activeProject>=WS.projects.length)WS.activeProject=0;saveWS();renderProjects();}};
+    grid.appendChild(c);});}
+function showPage(p){document.getElementById('projects').classList.toggle('show',p==='projects');document.getElementById('workspace').style.display=p==='workspace'?'grid':'none';if(p==='workspace')requestAnimationFrame(()=>resize());}
+function openProject(i){WS.activeProject=i;WS.projects[i].updated=Date.now();saveWS();showPage('workspace');renderProjSel();renderTeam();selGeo=0;renderGlist();const g=proj().geoms[0];
+  if(g){selectGeo(0);}
+  else{selPreset=null;pristine=false;clearField();document.getElementById('editor').innerHTML='';document.getElementById('cards').style.display='none';const ov=document.getElementById('overlay');ov.classList.remove('hide');ov.innerHTML='<span>Add a geometry (+ Add) to begin</span>';}}
+function newProject(){const n=prompt('New project name:','Untitled Project');if(!n)return;WS.projects.push({name:n.trim(),geoms:[],updated:Date.now()});saveWS();openProject(WS.projects.length-1);}
+document.getElementById('pNew').onclick=newProject;
+document.getElementById('wm').onclick=()=>{renderProjects();showPage('projects');};
+document.querySelectorAll('.pn').forEach(b=>b.onclick=()=>{document.querySelectorAll('.pn').forEach(x=>x.classList.remove('on'));b.classList.add('on');pnav=b.dataset.nav;renderProjects();});
+
+// draggable floating panels — during a demo they can be dragged anywhere so nothing stays hidden
+function makeDraggable(el){el.style.cursor='grab';el.style.touchAction='none';let sx,sy,drag=false;
+  el.addEventListener('pointerdown',e=>{if(e.target.closest('button,input,select,a'))return;      // let controls still work
+    const r=el.getBoundingClientRect();el.style.position='fixed';el.style.left=r.left+'px';el.style.top=r.top+'px';
+    el.style.right='auto';el.style.bottom='auto';el.style.transform='none';el.style.margin='0';el.style.zIndex='40';el.style.pointerEvents='auto';
+    sx=e.clientX-r.left;sy=e.clientY-r.top;drag=true;el.setPointerCapture(e.pointerId);el.style.cursor='grabbing';e.preventDefault();});
+  el.addEventListener('pointermove',e=>{if(!drag)return;el.style.left=(e.clientX-sx)+'px';el.style.top=(e.clientY-sy)+'px';});
+  const end=e=>{if(!drag)return;drag=false;el.style.cursor='grab';try{el.releasePointerCapture(e.pointerId);}catch(_){}};
+  el.addEventListener('pointerup',end);el.addEventListener('pointercancel',end);}
+async function init(){document.querySelectorAll('.logoMark').forEach(e=>e.innerHTML=LOGO_SVG);
+  ['cards','vswitch','promptBar','cadnote','xbadge','cmpAcc'].forEach(id=>{const e=document.getElementById(id);if(e)makeDraggable(e);});
+  document.querySelectorAll('.cbar-wrap').forEach(makeDraggable);
+  resize();cases=await (await fetch('/api/cases')).json();if(!WS||WS.v!==2)seedWS();renderScen();WS.projects.forEach((p,k)=>{if(!p.updated)p.updated=Date.now()-k*7200000;});saveWS();renderProjects();showPage('projects');}
+init();
+</script>
+</body>
+</html>
