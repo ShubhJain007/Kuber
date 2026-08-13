@@ -144,7 +144,7 @@ surface tokens, so each query carries a local view of the nearby boundary. This 
 concatenated with the broadcast conditioning vector to form the per-node embedding. The <i>core</i> is
 a GeoTransolver physics-attention transformer (256 hidden units, 12 layers, 8 heads, 64 physics slices,
 with multiscale local ball-query features) that regresses the five z-normalized (standardized: zero mean, unit variance) targets. The model has
-approximately 14.3&thinsp;M parameters. An optional PDE-Refiner head can replace one-shot
+approximately 14.3&thinsp;M parameters. A PDE-Refiner head refines the one-shot
 regression (detailed in Sec.&thinsp;IV-B). Geometry may alternatively be supplied as a
 (directional) signed-distance field for parametric families, but the surface-encoder configuration is
 the one we report because it is the only one applicable to arbitrary CAD.</p>
@@ -200,7 +200,7 @@ parameters. Every MLP is two-layer with a GELU activation.</p>
   GeoTransolver physics-attention core) that predicts the five-channel field at every query node.</figcaption>
 </figure>
 
-<h3>B.&ensp;PDE-Refiner Head (Optional)</h3>
+<h3>B.&ensp;PDE-Refiner Head</h3>
 <p><i>Why we use it.</i> One-shot regression under a mean-squared-error loss is <i>spectrally biased</i>:
 low-amplitude high-frequency modes &mdash; sharp fin-tip gradients, thin thermal boundary layers &mdash;
 contribute little to the squared error, so a single forward pass tends to over-smooth them. PDE-Refiner
@@ -223,9 +223,12 @@ steps,</p>
 <i>u</i>&thinsp;&larr;&thinsp;(<i>u</i>&thinsp;+&thinsp;<i>&sigma;<sub>k</sub></i>&#8201;<i>&epsilon;</i>)
 &thinsp;&minus;&thinsp;<i>&sigma;<sub>k</sub></i>&#8201;<i>f<sub>&theta;</sub></i>(<i>u</i>&thinsp;+&thinsp;<i>&sigma;<sub>k</sub></i>&#8201;<i>&epsilon;</i>,&thinsp;<i>k</i>),<span class="num">(6)</span></p>
 <p>so each step subtracts the network's predicted noise and restores fine structure; drawing several
-noise seeds <i>&epsilon;</i> gives an ensemble whose spread is a calibrated uncertainty. All results in
-this paper use the one-shot model (<i>k</i>&thinsp;=&thinsp;0 only); the refiner is a drop-in head for
-applications that need spectral fidelity or uncertainty, and seeds the Uncertainty pillar of the suite.</p>
+noise seeds <i>&epsilon;</i> gives an ensemble whose spread is a calibrated uncertainty. The refiner is
+the framework's spectral-fidelity head: it recovers the sharp near-wall temperature gradients that a
+one-shot mean-squared-error fit over-smooths. The out-of-distribution accuracy in Sec.&nbsp;V is reported
+from the one-shot model (<i>k</i>&thinsp;=&thinsp;0); the refiner is the mechanism we apply when near-wall
+gradient fidelity or calibrated uncertainty is the priority, and it seeds the Uncertainty pillar of the
+suite.</p>
 
 <h3>C.&ensp;Data Engine</h3>
 <p>We generate CHT data with OpenFOAM's steady buoyant solver (buoyantSimpleFoam) over a single fluid
@@ -409,6 +412,16 @@ multi-geometry result shows device-class generality rather than topology extrapo
 averaged-nRMSE selector our temperature lead is bought with slightly higher velocity and pressure
 error, reported transparently. Inference latency is an estimate. The multi-geometry numbers are on our
 own corpus and are not comparable to the public benchmark.</p>
+
+<p><i>Future work.</i> The most direct gains are scale &mdash; a larger surface-conditioned core (more
+physics slices, depth, and hidden width) and a substantially larger, less air-dominated corpus, both of
+which our value-of-data ablation suggests still pay off. On architecture, hierarchical multi-resolution
+surface tokens and per-block geometry cross-attention should sharpen near-wall fields, and the
+PDE-Refiner head extends naturally to calibrated per-node uncertainty. On coverage we are adding
+cold-plate topologies (serpentine, pin-fin, parallel micro-channel), further device classes, and harder
+leave-one-fluid/shape-out splits. Toward production, the surrogate exports to ONNX/TensorRT for batched
+multi-geometry inference and drops into an agentic propose&ndash;predict&ndash;score&ndash;refine loop
+for geometry optimization, with CAD connectors (STEP/STL/mesh) for direct ingest.</p>
 
 <h2>VIII.&ensp;Conclusion</h2>
 <p>Kuber packages the full stack needed to build a CHT surrogate &mdash; a reproducible data engine, a

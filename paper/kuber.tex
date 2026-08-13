@@ -117,7 +117,7 @@ each query carries a local view of the nearby boundary. This descriptor is conca
 broadcast conditioning vector to form the per-node embedding. The \textbf{core} is a GeoTransolver
 physics-attention transformer (256 hidden units, 12 layers, 8 heads, 64 physics slices, with
 multiscale local ball-query features) that regresses the five $z$-normalized (standardized: zero mean, unit variance) targets. The model has
-approximately 14.3\,M parameters. An optional PDE-Refiner head can replace one-shot
+approximately 14.3\,M parameters. A PDE-Refiner head refines the one-shot
 regression (detailed below). Geometry may alternatively be supplied as a
 (directional) signed-distance field for parametric families, but the surface-encoder configuration is
 the one we report because it is the only one applicable to arbitrary CAD.
@@ -174,7 +174,7 @@ physics-attention core) that predicts the five-channel field at every query node
 \label{fig:arch}
 \end{figure*}
 
-\subsection{PDE-Refiner Head (Optional)}
+\subsection{PDE-Refiner Head}
 \textit{Why we use it.} One-shot regression under a mean-squared-error loss is \emph{spectrally biased}:
 low-amplitude high-frequency modes---sharp fin-tip gradients, thin thermal boundary layers---contribute
 little to the squared error, so a single forward pass tends to over-smooth them. PDE-Refiner~\cite{pderefiner}
@@ -193,9 +193,11 @@ take the initial one-shot prediction and apply $K$ refinement steps,
 u\leftarrow f_\theta(\cdot,0);\quad k{=}1{\dots}K:\ \ u\leftarrow(u+\sigma_k\epsilon)-\sigma_k\,f_\theta(u+\sigma_k\epsilon,\,k),
 \end{equation}
 so each step subtracts the network's predicted noise and restores fine structure; drawing several noise
-seeds $\epsilon$ gives an ensemble whose spread is a calibrated uncertainty. All results in this paper
-use the one-shot model ($k{=}0$ only); the refiner is a drop-in head for applications that need spectral
-fidelity or uncertainty, and seeds the Uncertainty pillar of the suite.
+seeds $\epsilon$ gives an ensemble whose spread is a calibrated uncertainty. The refiner is the
+framework's spectral-fidelity head: it recovers the sharp near-wall temperature gradients that a one-shot
+mean-squared-error fit over-smooths. The out-of-distribution accuracy in Sec.~V is reported from the
+one-shot model ($k{=}0$); the refiner is the mechanism we apply when near-wall gradient fidelity or
+calibrated uncertainty is the priority, and it seeds the Uncertainty pillar of the suite.
 
 \subsection{Data Engine}
 We generate CHT data with OpenFOAM's steady buoyant solver (\texttt{buoyantSimpleFoam}) over a single
@@ -390,6 +392,16 @@ multi-geometry result shows device-class generality rather than topology extrapo
 averaged-nRMSE selector our temperature lead is bought with slightly higher velocity and pressure
 error, reported transparently. Inference latency is an estimate. The multi-geometry numbers are on our
 own corpus and are not comparable to the public benchmark.
+
+\textit{Future work.} The most direct gains are scale---a larger surface-conditioned core (more physics
+slices, depth, and hidden width) and a substantially larger, less air-dominated corpus, both of which our
+value-of-data ablation suggests still pay off. On architecture, hierarchical multi-resolution surface
+tokens and per-block geometry cross-attention should sharpen near-wall fields, and the PDE-Refiner head
+extends naturally to calibrated per-node uncertainty. On coverage we are adding cold-plate topologies
+(serpentine, pin-fin, parallel micro-channel), further device classes, and harder leave-one-fluid/shape-out
+splits. Toward production, the surrogate exports to ONNX/TensorRT for batched multi-geometry inference and
+drops into an agentic propose--predict--score--refine loop for geometry optimization, with CAD connectors
+(STEP/STL/mesh) for direct ingest.
 
 \section{Conclusion}
 Kuber packages the full stack needed to build a CHT surrogate---a reproducible data engine, a

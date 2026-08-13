@@ -36,7 +36,7 @@ The full stack, from physics-data generation to a deployable, geometry-general s
 - **Honest evaluation harness.** Per-field normalized RMSE, near-wall fidelity, a numerical no-explosion stability proof, and a value-of-data ablation — with machine-readable results.
 - **Up to 10,000× faster than CFD.** Sub-second, geometry-independent inference versus minutes-to-hours per CFD solve.
 
-*On the roadmap:* CAD connectors (STEP/STL/mesh ingest), calibrated Bayesian uncertainty, and agentic geometry optimization; more CHT domains and cold-plate topologies.
+*Kuber is an open **suite**, not a finished benchmark — see the [Roadmap](#roadmap) for what's next.*
 
 ![SurfaceGeoTransolver architecture — real geometry input, network pipeline, predicted field](assets/sim/architecture.png)
 
@@ -48,6 +48,7 @@ The full stack, from physics-data generation to a deployable, geometry-general s
 - [Recipes](#recipes)
 - [Dataset & Training](#dataset--training)
 - [Performance Benchmarks](#performance-benchmarks)
+- [Roadmap](#roadmap)
 - [Contributing](#contributing)
 - [Supported systems](#supported-systems)
 - [Licensing](#licensing)
@@ -169,6 +170,35 @@ All numbers are for **SurfaceGeoTransolver** (full-geometry input), measured and
 **Dataset.** A self-generated OpenFOAM CHT corpus — 0 cases from SIMSHIFT or any licensed source. A 6-case sample is in [`data_sample/`](data_sample); the contract is in [`docs/DATASET.md`](docs/DATASET.md). Fidelity is verified: prism layers recover the near-wall hot spot to within 0.1 K of a fine mesh at ~2.7× lower cost.
 
 ![The Kuber corpus at a glance](assets/fig_corpus.svg)
+
+## Roadmap
+
+Kuber is an open **suite**, not a finished benchmark. What's built is above; this is what's next.
+
+**Scale**
+- [ ] **Larger models** — scale SurfaceGeoTransolver past 14 M params (more physics slices, depth, hidden width) and chart the accuracy vs. latency trade-off
+- [ ] **More data** — grow the corpus well beyond its current air-dominated size, with far more liquid-cooled cases and additional fluids (the [value-of-data](docs/RESULTS.md) trend says it still pays off)
+- [ ] **Longer training** — run the full Warmup–Stable–Decay cosine tail for the final polished numbers
+
+**Architecture**
+- [ ] **Hierarchical surface tokens** — multi-resolution geometry encoding for sharper near-wall fields
+- [ ] **Per-block geometry cross-attention** (AB-UPT-style) as an alternative to the concatenated descriptor
+- [ ] **Calibrated Bayesian uncertainty** — turn the PDE-Refiner denoising ensemble into per-node error bars
+
+**Capabilities (the three suite pillars)**
+- [ ] **CAD connectors** — direct STEP / STL / mesh ingest, so any geometry loads without the parametric generator
+- [ ] **Uncertainty predictor** — ship calibrated confidence alongside every field
+- [ ] **Agentic geometry optimization** — close the loop: propose → predict → score → refine a heatsink / cold-plate against a thermal objective
+
+**Coverage**
+- [ ] **More cold-plate topologies** — serpentine, pin-fin, parallel micro-channel (currently straight-channel only)
+- [ ] **More device classes / domains** — heat exchangers, power electronics, battery packs, HVAC
+- [ ] **Harder splits** — leave-one-fluid-out and leave-one-shape-out
+
+**Production**
+- [ ] **Hosted inference API** + the live demo as a managed service
+- [ ] **ONNX / TensorRT export** and batched multi-geometry inference
+- [ ] **Public, versioned leaderboard** for community submissions
 
 ## Contributing
 
