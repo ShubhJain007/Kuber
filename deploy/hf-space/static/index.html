@@ -232,7 +232,7 @@
         <div style="display:flex;align-items:center;gap:8px"><span style="width:13px;height:9px;border-radius:2px;background:rgba(174,184,194,.18);border:1px solid #8b98a5;flex:none"></span>Plate body (metal housing)</div>
         <div style="margin-top:7px;color:#8b98a5">One straight rectangular channel. Serpentine / pin-fin topologies coming soon.</div>
       </div>
-      <div class="xbadge" id="xbadge">⚠ Extrapolated — outside the trained range (fins 5–8). Field is indicative, not validated.</div>
+      <div class="xbadge" id="xbadge">⚠ CFD ground truth for this geometry is not available — the field shown is a model prediction with no CFD reference to compare against.</div>
       <div class="cards" id="cards">
         <div class="mc"><div class="ic" style="background:rgba(47,168,102,.15)"><svg viewBox="0 0 24 24" stroke="#2fa866"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div><div><div class="lab">Kuber.ai runtime</div><div class="val" id="mcTime">—</div></div></div>
         <div class="mc"><div class="ic" style="background:rgba(92,107,120,.14)"><svg viewBox="0 0 24 24" stroke="#5c6b78"><path d="M6 4h12M6 20h12M8 4v4l4 4-4 4v4M16 4v4l-4 4 4 4v4"/></svg></div><div><div class="lab">CFD solver</div><div class="val" id="mcCfd">—</div></div></div>
@@ -483,7 +483,7 @@ function applyGTui(){const gt=cur&&cur.hasGT;
   // custom geometry has no CFD solve -> hide CFD-time + speed-up cards (we don't have that data for it)
   document.getElementById('mcCfd').closest('.mc').style.display=gt?'':'none';
   document.getElementById('mcSpd').closest('.mc').style.display=gt?'':'none';
-  document.getElementById('xbadge').style.display=(cur&&cur.extrapolated)?'block':'none';
+  document.getElementById('xbadge').style.display=(cur&&!cur.hasGT)?'block':'none';
   applyMode();}
 function showCond(c){document.getElementById('condBox').innerHTML=row('Fins',c.fins)+row('Length',(c.length*1000).toFixed(0)+' mm')+row('Width',(c.width*1000).toFixed(0)+' mm')+row('Fin height',(c.height2*1000).toFixed(0)+' mm')+row('Wall temp',c.solidTemp+' K')+row('Ambient',c.envTemp+' K');}
 function row(k,v){return `<div class="cond"><span>${k}</span><b>${v}</b></div>`;}
