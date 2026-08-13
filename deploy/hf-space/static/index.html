@@ -437,7 +437,7 @@ const CFD_SEC=995;    // measured OpenFOAM buoyantSimpleFoam ExecutionTime (s) p
 const CFD_SEC_CP=62;  // measured per cold-plate case (structured blockMesh duct, ~1000 iters — much faster)
 function fmtSpeed(x){return x>=1000?(x/1000).toFixed(x>=9500?0:1)+'k':String(Math.round(x));}
 function updateMetrics(){const m=cur.metrics;const sec=cur.infer_ms/1000;const cp=cur.device==='coldplate';const cfd=cp?CFD_SEC_CP:CFD_SEC;
-  document.getElementById('mcTime').innerHTML=sec.toFixed(3)+'<small> s</small>';
+  document.getElementById('mcTime').innerHTML=sec.toFixed(3)+'<small> s · '+(window.DEV||'CPU')+'</small>';
   document.getElementById('mcCfd').innerHTML=cfd.toLocaleString()+'<small> s</small>';
   document.getElementById('mcSpd').innerHTML=fmtSpeed(cfd/sec)+'<small>×</small>';
   document.getElementById('mcTemp').innerHTML=m.peak_T+'<small> K</small>';
@@ -726,7 +726,7 @@ function makeDraggable(el){el.style.cursor='grab';el.style.touchAction='none';le
 async function init(){document.querySelectorAll('.logoMark').forEach(e=>e.innerHTML=LOGO_SVG);
   ['cards','vswitch','promptBar','cadnote','xbadge','cmpAcc'].forEach(id=>{const e=document.getElementById(id);if(e)makeDraggable(e);});
   document.querySelectorAll('.cbar-wrap').forEach(makeDraggable);
-  resize();cases=await (await fetch('/api/cases')).json();try{const _i=await (await fetch('/api/info')).json();['devLabel','pverDev'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=_i.device;});}catch(e){}if(!WS||WS.v!==3)seedWS();renderScen();WS.projects.forEach((p,k)=>{if(!p.updated)p.updated=Date.now()-k*7200000;});saveWS();renderProjects();showPage('projects');}
+  resize();cases=await (await fetch('/api/cases')).json();try{const _i=await (await fetch('/api/info')).json();window.DEV=_i.device;['devLabel','pverDev'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=_i.device;});}catch(e){}if(!WS||WS.v!==3)seedWS();renderScen();WS.projects.forEach((p,k)=>{if(!p.updated)p.updated=Date.now()-k*7200000;});saveWS();renderProjects();showPage('projects');}
 init();
 </script>
 </body>
