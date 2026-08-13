@@ -148,6 +148,20 @@ def _boxes_phys(cond):
     return boxes
 
 
+def _align_boxes(boxes, surf_bb):
+    """Translate origin-centered heatsink fin boxes so their bounding-box center matches the
+    stored surface bbox center — placing the reconstructed solid at its TRUE location in the
+    CFD mesh frame so it sits inside the fluid point cloud (the coords we return are mesh-frame).
+    Returns JSON-ready [[lo,hi],...]. Without a stored surface, returns the boxes unchanged."""
+    lo = np.min([b[0] for b in boxes], axis=0)
+    hi = np.max([b[1] for b in boxes], axis=0)
+    if surf_bb is None:
+        return [[list(map(float, b[0])), list(map(float, b[1]))] for b in boxes]
+    sp_lo, sp_hi = surf_bb
+    off = (np.asarray(sp_lo) + np.asarray(sp_hi)) / 2.0 - (np.asarray(lo) + np.asarray(hi)) / 2.0
+    return [[(np.asarray(b[0]) + off).tolist(), (np.asarray(b[1]) + off).tolist()] for b in boxes]
+
+
 def _stl_from_cond(cond, name="heatsink"):
     """ASCII STL of the heatsink solid (axis-aligned boxes -> 12 triangles each).
 
@@ -223,11 +237,15 @@ class Engine:
         self.n_surf = n_surf
         self.split = self.dataset["src_test"]                     # in-distribution cases (both device classes)
         self.ids = list(self.split["ids"])
-        self.conds, self.bbox = [], []
+        self.conds, self.bbox, self.surf_bb = [], [], []
         for sid in self.ids:                                      # per-case conditions + physical bbox
             z = np.load(self.data_dir / f"{sid}.npz", allow_pickle=True)
             self.conds.append(json.loads(str(z["conditions"])))
             c = np.asarray(z["coords"], np.float64); self.bbox.append((c.min(0), c.max(0)))
+            if "surf_pts" in z.files:                             # true solid location in the mesh frame
+                sp = np.asarray(z["surf_pts"], np.float64); self.surf_bb.append((sp.min(0), sp.max(0)))
+            else:
+                self.surf_bb.append(None)
         self.devs = [int(round(float(c.get("device", 0.0)))) for c in self.conds]  # 0=heatsink 1=cold plate
         # warm up CUDA (kernel compile/cache) so the FIRST user prediction is fast, not a cold start
         try:
@@ -237,9 +255,11 @@ class Engine:
             pass
 
     def _case_boxes(self, i):
-        """Physical [lo,hi] boxes: heatsink -> fin boxes from conditions; cold plate -> channel duct (coords bbox)."""
+        """Physical [lo,hi] boxes: heatsink -> fin boxes from conditions, translated to the solid's
+        true location in the CFD mesh frame (so they sit inside the fluid cloud); cold plate ->
+        channel duct (coords bbox)."""
         if self.devs[i] == 0 and "fins" in self.conds[i]:
-            return _boxes_phys(self.conds[i])
+            return _align_boxes(_boxes_phys(self.conds[i]), self.surf_bb[i])
         lo, hi = self.bbox[i]
         return [[lo.tolist(), hi.tolist()]]
 
@@ -324,7 +344,7 @@ class Engine:
                 "T": {"pred": np.round(pv[:, _TIDX], 2).tolist(), "gt": np.round(pv[:, _TIDX], 2).tolist(), "unit": "K"},
                 "velocity": {"pred": np.round(vmag, 4).tolist(), "gt": np.round(vmag, 4).tolist(), "unit": "m/s"},
                 "p_rgh": {"pred": np.round(pv[:, 4], 1).tolist(), "gt": np.round(pv[:, 4], 1).tolist(), "unit": "Pa"}},
-            "boxes": _boxes_phys(cond),
+            "boxes": _align_boxes(_boxes_phys(cond), self.surf_bb[base]),
             "metrics": {"peak_T": round(float(pred[:, _TIDX].max()), 2), "peak_T_gt": round(float(pred[:, _TIDX].max()), 2),
                         "T_rmse": 0.0, "dP": round(float(pred[:, 4].max() - pred[:, 4].min()), 1),
                         "solidTemp": round(float(cond["solidTemp"]), 1), "envTemp": round(float(cond.get("envTemp", 300)), 1)}}
