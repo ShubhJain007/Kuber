@@ -149,30 +149,32 @@ def _boxes_phys(cond):
     return boxes
 
 
-def _align_boxes(boxes, surf_bb):
-    """Reorient + place the reconstructed heatsink fin boxes to match the solid's TRUE pose in
-    the CFD mesh frame, so they sit inside the fluid point cloud (the coords we return are
-    mesh-frame). The reconstruction is built Z-up (fins along Y); the bsf mesh may be Y-up
-    (fins along Z), so we detect the axis permutation by matching the reconstructed box
-    dimensions to the stored surface bbox dimensions, permute (rotate) the boxes, then translate
-    their center onto the solid's center. Returns JSON-ready [[lo,hi],...]; without a stored
-    surface, returns the boxes unchanged."""
+def _boxes_json(boxes):
+    """JSON-ready [[lo,hi],...] from a list of (lo,hi) tuples."""
+    return [[list(map(float, b[0])), list(map(float, b[1]))] for b in boxes]
+
+
+def _mesh_to_canonical(coords, surf_bb, recon_boxes):
+    """Map fluid points from the CFD mesh frame into the CANONICAL, origin-centred reconstruction
+    frame — the same frame the geometry editor/preview and `_boxes_phys` use — so the returned point
+    cloud aligns with the canonical geometry boxes and matches what the UI shows *before* Predict (no
+    shape jump). The reconstruction is Z-up; the bsf mesh may be Y-up and offset, so we recover the
+    axis permutation by matching reconstructed dims to the stored surface dims, then re-centre.
+    Cold plates (surf_bb=None) are returned unchanged."""
+    coords = np.asarray(coords, float)
     if surf_bb is None:
-        return [[list(map(float, b[0])), list(map(float, b[1]))] for b in boxes]
-    lo = np.min([b[0] for b in boxes], axis=0).astype(float)
-    hi = np.max([b[1] for b in boxes], axis=0).astype(float)
-    sp_lo = np.asarray(surf_bb[0], float); sp_hi = np.asarray(surf_bb[1], float)
-    d_recon = hi - lo
-    d_surf = sp_hi - sp_lo
-    # axis permutation that best matches reconstructed dims to the true solid's dims
+        return coords
+    rlo = np.min([b[0] for b in recon_boxes], axis=0).astype(float)
+    rhi = np.max([b[1] for b in recon_boxes], axis=0).astype(float)
+    slo = np.asarray(surf_bb[0], float); shi = np.asarray(surf_bb[1], float)
+    d_recon = rhi - rlo; d_surf = shi - slo
     perm = min(itertools.permutations(range(3)),
-               key=lambda p: float(np.sum(np.abs(d_recon[list(p)] - d_surf))))
-    p = list(perm)
-    pboxes = [(np.asarray(b[0], float)[p], np.asarray(b[1], float)[p]) for b in boxes]
-    plo = np.min([b[0] for b in pboxes], axis=0)
-    phi = np.max([b[1] for b in pboxes], axis=0)
-    off = (sp_lo + sp_hi) / 2.0 - (plo + phi) / 2.0
-    return [[(b[0] + off).tolist(), (b[1] + off).tolist()] for b in pboxes]
+               key=lambda pp: float(np.sum(np.abs(d_recon[list(pp)] - d_surf))))
+    sc = (slo + shi) / 2.0; rc = (rlo + rhi) / 2.0
+    out = np.empty_like(coords)
+    for j in range(3):                       # mesh axis j  ->  canonical axis perm[j]
+        out[:, perm[j]] = (coords[:, j] - sc[j]) + rc[perm[j]]
+    return out
 
 
 def _near_solid_pool(coords, surf_bb, factor=2.5, min_pts=2000):
@@ -303,7 +305,7 @@ class Engine:
         true location in the CFD mesh frame (so they sit inside the fluid cloud); cold plate ->
         channel duct (coords bbox)."""
         if self.devs[i] == 0 and "fins" in self.conds[i]:
-            return _align_boxes(_boxes_phys(self.conds[i]), self.surf_bb[i])
+            return _boxes_json(_boxes_phys(self.conds[i]))         # canonical (matches the editor + cloud)
         lo, hi = self.bbox[i]
         return [[lo.tolist(), hi.tolist()]]
 
@@ -316,7 +318,11 @@ class Engine:
                             "title": "Heatsink · %d fins" % int(c.get("fins", 0)),
                             "sub": "%.0f×%.0f mm · wall %.0f K · %s" % (float(c.get("length", 0)) * 1000, float(c.get("width", 0)) * 1000, float(c.get("solidTemp", 0)), _fluid_name(c)),
                             "fins": int(c.get("fins", 0)), "solidTemp": round(float(c.get("solidTemp", 0)), 1),
-                            "envTemp": round(float(c.get("envTemp", 300)), 1), "fluid": _fluid_name(c)})
+                            "envTemp": round(float(c.get("envTemp", 300)), 1), "fluid": _fluid_name(c),
+                            # geometry scalars (metres) so the editor populates its sliders (no NaN mm)
+                            "length": float(c.get("length", 0)), "width": float(c.get("width", 0)),
+                            "height1": float(c.get("height1", 0)), "height2": float(c.get("height2", 0)),
+                            "gap": float(c.get("gap", 0)), "thickness_fins": float(c.get("thickness_fins", 0))})
             else:                                                      # cold plate (heat-flux BC, liquid, forced)
                 out.append({"index": i, "id": self.ids[i], "device": "coldplate",
                             "title": "Cold plate · %s" % _fluid_name(c),
@@ -375,7 +381,8 @@ class Engine:
         vol, c01, lo, scale, pred, dt = self._infer_cond(cond, base)
         pool = _near_solid_pool(vol, self.surf_bb[base])          # near-field around the solid (axis-agnostic)
         idx = pool if pool.size <= max_points else np.random.default_rng(0).choice(pool, max_points, replace=False)
-        cc, pv = vol[idx], pred[idx]                               # PHYSICAL coords (uniform aspect)
+        cc = _mesh_to_canonical(vol[idx], self.surf_bb[base], _boxes_phys(self.conds[base]))
+        pv = pred[idx]                                             # canonical display frame (matches editor)
         vmag = np.linalg.norm(pv[:, :3], axis=1)
         return {
             "case_id": "custom", "fins": int(cond["fins"]), "custom": True,
@@ -386,7 +393,7 @@ class Engine:
                 "T": {"pred": np.round(pv[:, _TIDX], 2).tolist(), "gt": np.round(pv[:, _TIDX], 2).tolist(), "unit": "K"},
                 "velocity": {"pred": np.round(vmag, 4).tolist(), "gt": np.round(vmag, 4).tolist(), "unit": "m/s"},
                 "p_rgh": {"pred": np.round(pv[:, 4], 1).tolist(), "gt": np.round(pv[:, 4], 1).tolist(), "unit": "Pa"}},
-            "boxes": _align_boxes(_boxes_phys(cond), self.surf_bb[base]),
+            "boxes": _boxes_json(_boxes_phys(cond)),               # canonical (matches editor + cloud)
             "metrics": {"peak_T": round(float(pred[:, _TIDX].max()), 2), "peak_T_gt": round(float(pred[:, _TIDX].max()), 2),
                         "T_rmse": 0.0, "dP": round(float(pred[:, 4].max() - pred[:, 4].min()), 1),
                         "solidTemp": round(float(cond["solidTemp"]), 1), "envTemp": round(float(cond.get("envTemp", 300)), 1)}}
@@ -472,11 +479,16 @@ class Engine:
         pool = _near_solid_pool(vol_phys, self.surf_bb[i] if self.devs[i] == 0 else None)
         idx = (pool if pool.size <= max_points
                else np.random.default_rng(0).choice(pool, max_points, replace=False))
-        c = vol_phys[idx]                                          # PHYSICAL coords (uniform aspect)
         pv, gv = pred[idx], gt[idx]
         vmagP = np.linalg.norm(pv[:, :3], axis=1)
         vmagG = np.linalg.norm(gv[:, :3], axis=1)
-        boxes = self._case_boxes(i)                                # PHYSICAL boxes (heatsink fins OR cold-plate duct)
+        if self.devs[i] == 0:                                      # heatsink: put the cloud in the SAME
+            recon = _boxes_phys(self.conds[i])                     # canonical frame as the editor preview
+            c = _mesh_to_canonical(vol_phys[idx], self.surf_bb[i], recon)
+            boxes = _boxes_json(recon)
+        else:                                                      # cold plate: mesh frame is the display frame
+            c = vol_phys[idx]
+            boxes = self._case_boxes(i)
 
         T_rmse = float(np.sqrt(np.mean((pred[:, _TIDX] - gt[:, _TIDX]) ** 2)))
         return {
