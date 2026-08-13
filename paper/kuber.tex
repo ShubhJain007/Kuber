@@ -72,8 +72,9 @@ data, machine-readable results, and an interactive viewer.
 \begin{figure*}[t]
 \centering
 \includegraphics[width=0.72\textwidth]{heat-sink-comparison.png}
-\caption{Kuber prediction vs. CFD ground truth for a heatsink: surface temperature field on the finned
-solid, showing $\pm$2.11\,K RMSE agreement (peak 342.17 vs.\ 340\,K CFD).}
+\caption{Kuber prediction vs. CFD ground truth for a heatsink simulation: surface temperature field on
+the finned solid, $\pm$2.11\,K RMSE agreement (peak 342.17 vs.\ 340\,K CFD), computed 7{,}000$\times$
+faster than the CFD solver.}
 \label{fig:hero}
 \end{figure*}
 
@@ -219,8 +220,8 @@ in-distribution (both) & 1.72 & 0.022 & 0.027 \\ \bottomrule
 \begin{figure*}[t]
 \centering
 \includegraphics[width=0.70\textwidth]{cold-plate-comparison.png}
-\caption{Kuber prediction vs. CFD ground truth for a liquid cold plate: surface temperature field,
-$\pm$1.33\,K RMSE agreement (peak 311.77 vs.\ 315.8\,K CFD), computed 445$\times$ faster than the CFD solver.}
+\caption{Kuber prediction vs. CFD ground truth for a liquid cold-plate simulation: surface temperature
+field, $\pm$1.33\,K RMSE agreement (peak 311.77 vs.\ 315.8\,K CFD), computed 445$\times$ faster than the CFD solver.}
 \label{fig:gtpred}
 \end{figure*}
 

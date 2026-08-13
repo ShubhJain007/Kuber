@@ -145,8 +145,8 @@ CONTENT = """
       <div class="stat"><div class="num">~14&thinsp;M</div><div class="lbl">parameters, geometry-general (arbitrary CAD)</div></div>
     </div>
     <div class="grid2">
-      <figure class="fig">__CMPHS__<figcaption>Heatsink &mdash; Kuber prediction vs. CFD ground truth (&plusmn;2.11&thinsp;K temperature agreement).</figcaption></figure>
-      <figure class="fig">__CMPCP__<figcaption>Cold plate &mdash; Kuber prediction vs. CFD ground truth (&plusmn;1.33&thinsp;K, 445&times; faster than the CFD solver).</figcaption></figure>
+      <figure class="fig">__CMPHS__<figcaption><b>Heatsink simulation</b> &mdash; Kuber prediction vs. CFD ground truth: &plusmn;2.11&thinsp;K temperature agreement, <b>7,000&times; faster</b> than CFD.</figcaption></figure>
+      <figure class="fig">__CMPCP__<figcaption><b>Cold plate simulation</b> &mdash; Kuber prediction vs. CFD ground truth: &plusmn;1.33&thinsp;K temperature agreement, <b>445&times; faster</b> than CFD.</figcaption></figure>
     </div>
   </section>
 

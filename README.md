@@ -17,11 +17,12 @@ The full stack, from physics-data generation to a deployable, geometry-general s
 
 </div>
 
-**Kuber prediction vs. CFD ground truth.** A heatsink (temperature agreement ±2.11 K) and a liquid cold plate (±1.33 K, 445× faster than the CFD solver):
+**Kuber prediction vs. CFD ground truth** — the surface temperature field, surrogate beside CFD:
 
 | | |
 |:---:|:---:|
-| ![Heatsink — Kuber vs CFD (±2.11 K RMSE)](assets/sim/heat-sink-comparison.png) | ![Cold plate — Kuber vs CFD (±1.33 K RMSE, 445× faster)](assets/sim/cold-plate-comparison.png) |
+| ![Heatsink simulation — Kuber vs CFD](assets/sim/heat-sink-comparison.png) | ![Cold plate simulation — Kuber vs CFD](assets/sim/cold-plate-comparison.png) |
+| **Heatsink simulation** — ±2.11 K temperature agreement, **7,000× faster** than CFD | **Cold plate simulation** — ±1.33 K temperature agreement, **445× faster** than CFD |
 
 > **Read the [technical report (PDF)](paper/kuber.pdf).** The [project page](https://shubhjain007.github.io/Kuber/) and an [interactive ground-truth-vs-prediction viewer](https://shubhjain007.github.io/Kuber/demo.html) (3D solid geometry + fluid field, heatsink & cold plate) are served from **GitHub Pages**.
 
