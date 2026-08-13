@@ -175,6 +175,20 @@ def _align_boxes(boxes, surf_bb):
     return [[(b[0] + off).tolist(), (b[1] + off).tolist()] for b in pboxes]
 
 
+def _near_solid_pool(coords, surf_bb, factor=2.5, min_pts=2000):
+    """Indices of fluid points in the near-field around the solid — axis-agnostic (works for any mesh
+    orientation, unlike a fixed z-slab). Keeps points within `factor` solid-radii of the solid-bbox
+    centre; falls back to all points for cold plates (surf_bb=None) or when the shell is too sparse."""
+    n = coords.shape[0]
+    if surf_bb is None:
+        return np.arange(n)
+    lo = np.asarray(surf_bb[0], float); hi = np.asarray(surf_bb[1], float)
+    c = (lo + hi) / 2.0
+    r = max(float(np.linalg.norm(hi - lo)) / 2.0, 1e-6)
+    pool = np.where(np.linalg.norm(coords - c, axis=1) < factor * r)[0]
+    return pool if pool.size >= min_pts else np.arange(n)
+
+
 def _stl_from_cond(cond, name="heatsink"):
     """ASCII STL of the heatsink solid (axis-aligned boxes -> 12 triangles each).
 
@@ -260,6 +274,23 @@ class Engine:
             else:
                 self.surf_bb.append(None)
         self.devs = [int(round(float(c.get("device", 0.0)))) for c in self.conds]  # 0=heatsink 1=cold plate
+        # Drop degenerate "heatsink" presets whose fins have zero height (height2==0): these are flat
+        # plates in the corpus, not finned heatsinks, and presenting them as an "N-fin heatsink" is
+        # misleading (they render as a bare base). They stay in the training/eval split; this only
+        # filters what the interactive demo lists + serves so every heatsink shown is truly finned.
+        S0 = len(self.ids)
+        keep = [j for j in range(S0)
+                if not (self.devs[j] == 0 and float(self.conds[j].get("height2", 0.0)) < 1e-3)]
+        if len(keep) < S0:
+            ksel = np.asarray(keep)
+            self.ids = [self.ids[j] for j in keep]
+            self.conds = [self.conds[j] for j in keep]
+            self.bbox = [self.bbox[j] for j in keep]
+            self.surf_bb = [self.surf_bb[j] for j in keep]
+            self.devs = [self.devs[j] for j in keep]
+            self.split = {k: (v[ksel] if isinstance(v, np.ndarray) and v.ndim >= 1 and v.shape[0] == S0
+                              else ([v[j] for j in keep] if isinstance(v, (list, tuple)) and len(v) == S0 else v))
+                          for k, v in self.split.items()}
         # warm up CUDA (kernel compile/cache) so the FIRST user prediction is fast, not a cold start
         try:
             if self.dev.type == "cuda":
@@ -342,9 +373,7 @@ class Engine:
     def predict_custom(self, ov, max_points=16384):
         cond, base = self._resolve_cond(ov)
         vol, c01, lo, scale, pred, dt = self._infer_cond(cond, base)
-        N = c01.shape[0]
-        pool = np.where(c01[:, 2] < 0.45)[0]
-        if pool.size < 2000: pool = np.arange(N)
+        pool = _near_solid_pool(vol, self.surf_bb[base])          # near-field around the solid (axis-agnostic)
         idx = pool if pool.size <= max_points else np.random.default_rng(0).choice(pool, max_points, replace=False)
         cc, pv = vol[idx], pred[idx]                               # PHYSICAL coords (uniform aspect)
         vmag = np.linalg.norm(pv[:, :3], axis=1)
@@ -434,17 +463,15 @@ class Engine:
 
         pred = pred[0].cpu().numpy() * self.ystd + self.ymean     # [N,5] physical
         gt = s["y"][i] * self.ystd + self.ymean
-        coords = s["coords"][i]                                   # normalized [0,1]
-        N = coords.shape[0]
-        # concentrate points in the near-field (heatsink + plume sit at low z),
-        # so the render is dense where the temperature actually varies
-        pool = np.arange(N) if self.devs[i] == 1 else np.where(coords[:, 2] < 0.45)[0]  # cold plate: whole channel; heatsink: near-field
-        if pool.size < 2000:
-            pool = np.arange(N)
-        idx = (pool if pool.size <= max_points
-               else np.random.default_rng(0).choice(pool, max_points, replace=False))
         vol_phys = np.asarray(np.load(self.data_dir / f"{self.ids[i]}.npz",
                                       allow_pickle=True)["coords"], np.float64)
+        N = vol_phys.shape[0]
+        # concentrate points in the near-field AROUND THE SOLID (axis-agnostic): some meshes are
+        # Y-up, so a fixed z-slab would slice the heatsink across its width and look misaligned.
+        # Keep fluid points within a few solid-radii of the solid centre (from the stored surface).
+        pool = _near_solid_pool(vol_phys, self.surf_bb[i] if self.devs[i] == 0 else None)
+        idx = (pool if pool.size <= max_points
+               else np.random.default_rng(0).choice(pool, max_points, replace=False))
         c = vol_phys[idx]                                          # PHYSICAL coords (uniform aspect)
         pv, gv = pred[idx], gt[idx]
         vmagP = np.linalg.norm(pv[:, :3], axis=1)
