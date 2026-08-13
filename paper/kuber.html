@@ -256,8 +256,10 @@ at <i>medium</i> difficulty: train on fin counts 5&ndash;8, test on the shifted,
 normalizers are fit on the source training split only. <i>Metrics.</i> We report per-field root-mean-square error (RMSE) in
 physical units and normalized RMSE (nRMSE); the benchmark's primary selector is mean nRMSE across the
 five fields. We additionally report near-wall <i>T</i>-RMSE and edge gradient ratios (Sec.&nbsp;VI-D).
-No baseline uses unsupervised domain adaptation (UDA) in our runs; the published baselines do, which is
-their best case. <i>Training.</i> Adam [11] at learning rate 10<sup>&minus;3</sup>, batch size 4 cases (16,384 query nodes each),
+No baseline uses <i>unsupervised domain adaptation</i> (UDA) &mdash; training-time adaptation to the
+<i>unlabeled</i> target (test) distribution, e.g. aligning source- and target-domain feature statistics
+to shrink the out-of-distribution gap &mdash; in our runs; the published baselines do, which is their
+best case. <i>Training.</i> Adam [11] at learning rate 10<sup>&minus;3</sup>, batch size 4 cases (16,384 query nodes each),
 with a warmup&ndash;stable&ndash;decay schedule: a 5-epoch linear warmup, a stable phase held until the validation
 mean-nRMSE plateaus (patience 25 epochs), then a 30-epoch cosine decay to 10<sup>&minus;6</sup>; the best-validation
 checkpoint is kept. Targets are <i>z</i>-scored per channel and coordinates mapped to a per-case unit frame. The

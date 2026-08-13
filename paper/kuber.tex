@@ -227,7 +227,9 @@ counts 10--12, which never appear in training. We train from scratch on the 222 
 normalizers are fit on the source training split only. \textit{Metrics.} We report per-field root-mean-square error (RMSE) in
 physical units and normalized RMSE (nRMSE); the benchmark's primary selector is mean nRMSE across the
 five fields. We additionally report near-wall $T$-RMSE and edge gradient ratios (Sec.~\ref{sec:stab}).
-No baseline uses unsupervised domain adaptation (UDA) in our runs; the published baselines do, which
+No baseline uses \emph{unsupervised domain adaptation} (UDA)---training-time adaptation to the
+\emph{unlabeled} target (test) distribution, e.g.\ aligning source- and target-domain feature
+statistics to shrink the out-of-distribution gap---in our runs; the published baselines do, which
 is their best case. \textit{Training.} Adam~\cite{adam} at learning rate $10^{-3}$, batch size 4 cases
 (16{,}384 query nodes each), with a warmup--stable--decay schedule: a 5-epoch linear warmup, a stable
 phase held until the validation mean-nRMSE plateaus (patience 25 epochs), then a 30-epoch cosine decay

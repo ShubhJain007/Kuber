@@ -4,6 +4,21 @@ A self-generated OpenFOAM conjugate-heat-transfer (CHT) corpus for electronics c
 **0 cases from SIMSHIFT or any licensed/scraped source**. Everything here is produced by the
 pipeline in [`../datagen/`](../datagen) and is free for research and other noncommercial use.
 
+## Why we generate it ourselves
+
+Training a CHT surrogate needs thousands of solved conjugate-heat-transfer cases with clean,
+redistributable provenance. That data did not exist for us to use:
+
+- **The public benchmark ships no generator.** SIMSHIFT publishes an evaluation split but not the
+  pipeline that produced it, so there is no license-clean way to *scale* it.
+- **Commercial datasets are encumbered.** The heatsink / cold-plate CFD data we could otherwise find
+  is Fluent/COMSOL-derived — licensing that forbids redistribution or model training.
+
+So we built an OpenFOAM pipeline (GPL solver; the *output data is ours*) that reproduces the SIMSHIFT
+heatsink distribution and extends it to new fluids, regimes, and a second device class. Every case is
+self-generated — **0 cases from SIMSHIFT or any licensed/scraped source** — which is what lets us
+release the corpus for research and hold contributors to the same "no licensed data" rule.
+
 ## What a case is
 
 One `.npz` per case, sampled to a fixed **16 384-node** point cloud in the fluid domain:
@@ -45,7 +60,8 @@ device                   # 0 = heatsink, 1 = cold plate
 
 **Honest limits.** The corpus is air-dominated; oil/glycol are thin (~30–40 cases each), so the model
 is strongest on air. The primary OOD axis is fin count; fluids/shapes appear in both train and test.
-More liquid data and leave-one-out splits are the roadmap.
+Cold plates are straight rectangular channels only — serpentine, pin-fin, and parallel-microchannel
+topologies are on the roadmap. More liquid data and leave-one-out splits are the roadmap too.
 
 ## How it is generated
 
@@ -56,11 +72,28 @@ parametric generator  →  STL  →  blockMesh + snappyHexMesh (+ prism layers) 
      gen_bsf.py           make_stl.py      mesh_geom.py                          run_sweep_bsf.py    to_npz_bsf.py
 ```
 
-- **Solver:** OpenFOAM `buoyantSimpleFoam` — single fluid region, the solid modelled as a heated wall
-  (heatsink) or a heat-flux surface (cold plate).
-- **Validity gate:** a case is written only after a converged solve; a physics filter rejects
-  unphysical results (e.g. hot cold plates exceeding a temperature ceiling with no boiling model).
-- **Resumable:** re-run the same command to continue; `status.json` is rewritten after every case.
+- **Solver.** OpenFOAM `buoyantSimpleFoam` — a steady, single-region *compressible* solver with the
+  `kOmegaSST` turbulence model and air as a `perfectGas`. The solid is not meshed as a second region
+  (the multi-region conjugate solver was a throughput dead end); it is modelled as its boundary — a
+  **fixed-temperature heated wall** (heatsinks, 340–400 K) or a **heat-flux surface** (cold plates).
+  Heatsinks sit in an open air box so the buoyant plume leaves cleanly.
+- **The pressure subtlety (the fix that made it work).** Because the solver is compressible, pressure
+  must be **absolute** (`p_rgh ≈ 1e5` Pa), not gauge-zero. Initialising at gauge 0 drives the density
+  toward zero and blows the solve up — this single detail separated garbage from a stable corpus.
+  Startup is further stabilised with temperature/velocity limiters (`fvOptions`) and field relaxation
+  (`p_rgh` 0.3, `U` 0.2, `h` 0.5).
+- **Meshing.** `blockMesh` background + `snappyHexMesh` to carve the solid, with **3 prism layers** to
+  resolve the near-wall thermal boundary layer (~1.4–2 M cells for heatsinks; high-fin OOD cases are
+  the largest). Cold plates are structured `blockMesh` rectangular ducts (fast, ~1 min/case).
+- **Sampling.** Latin-hypercube over geometry **and** operating conditions — heatsink fin count 5–14
+  with width-derived gaps (plus plate and cube variants), channel L/W/H for cold plates, and fluid +
+  flow/Reynolds + heat-flux / wall-temperature — which is what fills the coverage table above.
+- **Validity gate.** A case is written only after the continuity residual converges (heatsinks
+  ~`1e-5`; cold plates `<5e-3`), then a physics filter drops unphysical results — e.g. we removed 156
+  cold plates whose coolant exceeded 550 K, since `buoyantSimpleFoam` has no boiling model and those
+  temperatures fall outside the physical range.
+- **Resumable.** Re-run the same command to continue; `status.json` is rewritten after every case, and
+  the raw solve is pruned once the `.npz` is written.
 
 ### Mesh-convergence check
 

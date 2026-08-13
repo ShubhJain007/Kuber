@@ -46,6 +46,7 @@ The full stack, from physics-data generation to a deployable, geometry-general s
 - [Installation](#installation)
 - [Quickstart](#quickstart)
 - [Recipes](#recipes)
+- [Dataset & Training](#dataset--training)
 - [Performance Benchmarks](#performance-benchmarks)
 - [Contributing](#contributing)
 - [Supported systems](#supported-systems)
@@ -98,9 +99,33 @@ Common workflows — each is a single command (see `python -m kuber.train_simshi
 
 `--geom_mode {none,sdf,dsdf,surface}` selects the geometry representation (`surface` is the reported production model); `--refine` adds the generative PDE-Refiner head. Architecture card: [`docs/MODEL.md`](docs/MODEL.md).
 
+## Dataset & Training
+
+**The corpus.** A self-generated OpenFOAM conjugate-heat-transfer dataset for electronics cooling —
+**0 cases from SIMSHIFT or any licensed/scraped source**. Each case is one solved steady-state field
+sampled to a 16,384-node fluid point cloud plus a 2,048-point solid-surface cloud, spanning two device
+classes (buoyancy-driven **heatsinks** and forced-convection **cold plates**), four fluids (air, water,
+oil, glycol), and both natural and forced convection.
+
+*How it's built:* a parametric (Latin-hypercube) generator → STL → `snappyHexMesh` / `blockMesh` (+ prism
+layers) → OpenFOAM **`buoyantSimpleFoam`** (compressible, `kOmegaSST`; the solid modelled as a
+heated-wall or heat-flux boundary) → `.npz`. The pipeline is resumable and gated on convergence plus a
+physics filter. One non-obvious detail makes the whole thing stable: because the solver is compressible,
+pressure must be **absolute** (`p_rgh ≈ 1e5` Pa), not gauge-zero. Coverage, the mesh-convergence study,
+and the full format: **[`docs/DATASET.md`](docs/DATASET.md)**.
+
+**Training.** One **SurfaceGeoTransolver** (~14.3 M params) is trained across both device classes with
+geometry read *only* from the surface point cloud (a learned local descriptor, not a scalar SDF) under a
+single unified physics-conditioning vector. Targets are z-scored on the training split only (no leakage);
+optimisation is Adam (`1e-3`) with a **Warmup–Stable–Decay** schedule and best-validation checkpointing;
+**no unsupervised domain adaptation**. Preprocessing, conditioning, the schedule, and reproduction:
+**[`docs/TRAINING.md`](docs/TRAINING.md)**.
+
 ## Performance Benchmarks
 
 All numbers are for **SurfaceGeoTransolver** (full-geometry input), measured and reproducible with the code here; caveats are in [`docs/RESULTS.md`](docs/RESULTS.md). Machine-readable: [`results/simshift_medium.json`](results/simshift_medium.json), [`results/leaderboard.csv`](results/leaderboard.csv), [`results/multigeo.json`](results/multigeo.json).
+
+> **UDA — Unsupervised Domain Adaptation:** training-time techniques that adapt a model to the *unlabeled* target (test) distribution — e.g. aligning source- and target-domain feature statistics — to shrink the out-of-distribution gap. The SIMSHIFT baselines rely on it; **Kuber uses none** and still leads.
 
 **SIMSHIFT heatsink — medium / out-of-distribution split** (train fin counts 5–8 → test 10–12). Baselines include UDA; Kuber uses none. Lower is better.
 
