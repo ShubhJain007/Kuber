@@ -173,32 +173,26 @@ All numbers are for **SurfaceGeoTransolver** (full-geometry input), measured and
 
 ## Roadmap
 
-Kuber is an open **suite**, not a finished benchmark. What's built is above; this is what's next.
+Kuber is an open **suite**, not a finished benchmark. Here's the plan for the next three months — each milestone ships something concrete.
 
-**Scale**
-- [ ] **Larger models** — scale SurfaceGeoTransolver past 14 M params (more physics slices, depth, hidden width) and chart the accuracy vs. latency trade-off
-- [ ] **More data** — grow the corpus well beyond its current air-dominated size, with far more liquid-cooled cases and additional fluids (the [value-of-data](docs/RESULTS.md) trend says it still pays off)
-- [ ] **Longer training** — run the full Warmup–Stable–Decay cosine tail for the final polished numbers
+### 🟢 Month 1 — Scale to a polished state of the art
+*Push the model and the corpus; lock in the headline numbers.*
+- [ ] Scale SurfaceGeoTransolver past 14 M params (more physics slices, depth, hidden width) and run the full Warmup–Stable–Decay cosine tail for the final numbers
+- [ ] Grow the corpus well beyond its air-dominated size — far more liquid-cooled cases and fluids (the [value-of-data](docs/RESULTS.md) trend says it still pays off)
+- [ ] Add harder splits: leave-one-fluid-out and leave-one-shape-out
 
-**Architecture**
-- [ ] **Hierarchical surface tokens** — multi-resolution geometry encoding for sharper near-wall fields
-- [ ] **Per-block geometry cross-attention** (AB-UPT-style) as an alternative to the concatenated descriptor
+### 🔵 Month 2 — Coverage + the uncertainty pillar
+*Broaden geometry coverage and ship calibrated confidence.*
+- [ ] More cold-plate topologies — serpentine, pin-fin, parallel micro-channel (currently straight-channel only)
+- [ ] New device classes / domains — heat exchangers, power electronics, battery packs
 - [ ] **Calibrated Bayesian uncertainty** — turn the PDE-Refiner denoising ensemble into per-node error bars
+- [ ] Architecture: hierarchical multi-resolution surface tokens + per-block geometry cross-attention
 
-**Capabilities (the three suite pillars)**
-- [ ] **CAD connectors** — direct STEP / STL / mesh ingest, so any geometry loads without the parametric generator
-- [ ] **Uncertainty predictor** — ship calibrated confidence alongside every field
-- [ ] **Agentic geometry optimization** — close the loop: propose → predict → score → refine a heatsink / cold-plate against a thermal objective
-
-**Coverage**
-- [ ] **More cold-plate topologies** — serpentine, pin-fin, parallel micro-channel (currently straight-channel only)
-- [ ] **More device classes / domains** — heat exchangers, power electronics, battery packs, HVAC
-- [ ] **Harder splits** — leave-one-fluid-out and leave-one-shape-out
-
-**Production**
-- [ ] **Hosted inference API** + the live demo as a managed service
-- [ ] **ONNX / TensorRT export** and batched multi-geometry inference
-- [ ] **Public, versioned leaderboard** for community submissions
+### 🟣 Month 3 — Product: connectors, optimization, deployment
+*Close the loop from CAD to an optimized geometry, served live.*
+- [ ] **CAD connectors** — direct STEP / STL / mesh ingest (no parametric generator needed)
+- [ ] **Agentic geometry optimization** — propose → predict → score → refine against a thermal objective
+- [ ] Hosted inference API + ONNX/TensorRT export + a public, versioned leaderboard
 
 ## Contributing
 
