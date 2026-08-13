@@ -48,6 +48,11 @@ def cases():
     return ENG["e"].list_cases()
 
 
+@app.get("/api/info")
+def info():
+    return {"device": ENG["e"].device_label()}
+
+
 @app.get("/api/geometry/{i}")
 def geometry(i: int):
     return ENG["e"].geometry(int(i))

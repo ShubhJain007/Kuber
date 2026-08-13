@@ -300,6 +300,15 @@ class Engine:
         except Exception:
             pass
 
+    def device_label(self):
+        """Human-readable label for the device inference actually runs on."""
+        if self.dev.type == "cuda":
+            try:
+                return torch.cuda.get_device_name(self.dev)
+            except Exception:
+                return "GPU"
+        return "CPU"
+
     def _case_boxes(self, i):
         """Physical [lo,hi] boxes: heatsink -> fin boxes from conditions, translated to the solid's
         true location in the CFD mesh frame (so they sit inside the fluid cloud); cold plate ->

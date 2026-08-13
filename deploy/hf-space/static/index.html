@@ -179,7 +179,7 @@
       <button class="pn on" data-nav="recent"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7.5"/><path d="M10 5.5V10l3 2"/></svg>Recent Projects</button>
       <button class="pn" data-nav="all"><svg viewBox="0 0 20 20"><rect x="3" y="3" width="6" height="6" rx="1"/><rect x="11" y="3" width="6" height="6" rx="1"/><rect x="3" y="11" width="6" height="6" rx="1"/><rect x="11" y="11" width="6" height="6" rx="1"/></svg>All Projects</button>
     </nav>
-    <div class="pver">Kuber.ai · v0.9<br>local · RTX 4060</div>
+    <div class="pver">Kuber.ai · v0.9<br>running on <span id="pverDev">…</span></div>
   </aside>
   <main class="pmain">
     <div class="ptop"><h1 id="pTitle">Recent Projects</h1><button class="pnew" id="pNew">New Project +</button></div>
@@ -190,7 +190,7 @@
   <header>
     <div class="wm brand" id="wm" style="cursor:pointer" title="Back to projects"><span class="logoMark"></span><span class="kw">Kuber</span><span class="kd">.ai</span></div><div class="rule"></div>
     <div class="projsel"><select id="projSel"></select></div>
-    <div class="team"><div class="avs" id="avs"></div><button class="invite" id="inviteBtn">+ Invite</button><div class="rule"></div><div class="status"><span class="d"></span>RTX 4060 · ready</div></div>
+    <div class="team"><div class="avs" id="avs"></div><button class="invite" id="inviteBtn">+ Invite</button><div class="rule"></div><div class="status"><span class="d"></span><span id="devLabel">…</span> · ready</div></div>
   </header>
   <div class="main">
     <div class="rail left">
@@ -726,7 +726,7 @@ function makeDraggable(el){el.style.cursor='grab';el.style.touchAction='none';le
 async function init(){document.querySelectorAll('.logoMark').forEach(e=>e.innerHTML=LOGO_SVG);
   ['cards','vswitch','promptBar','cadnote','xbadge','cmpAcc'].forEach(id=>{const e=document.getElementById(id);if(e)makeDraggable(e);});
   document.querySelectorAll('.cbar-wrap').forEach(makeDraggable);
-  resize();cases=await (await fetch('/api/cases')).json();if(!WS||WS.v!==3)seedWS();renderScen();WS.projects.forEach((p,k)=>{if(!p.updated)p.updated=Date.now()-k*7200000;});saveWS();renderProjects();showPage('projects');}
+  resize();cases=await (await fetch('/api/cases')).json();try{const _i=await (await fetch('/api/info')).json();['devLabel','pverDev'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=_i.device;});}catch(e){}if(!WS||WS.v!==3)seedWS();renderScen();WS.projects.forEach((p,k)=>{if(!p.updated)p.updated=Date.now()-k*7200000;});saveWS();renderProjects();showPage('projects');}
 init();
 </script>
 </body>
