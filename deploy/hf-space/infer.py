@@ -9,6 +9,7 @@ Reuses the exact training-time input construction via src.train_simshift.load_da
 units with pred*ystd + ymean (per make_demo_frames.py).
 """
 from __future__ import annotations
+import itertools
 import json
 import time
 from pathlib import Path
@@ -149,17 +150,29 @@ def _boxes_phys(cond):
 
 
 def _align_boxes(boxes, surf_bb):
-    """Translate origin-centered heatsink fin boxes so their bounding-box center matches the
-    stored surface bbox center — placing the reconstructed solid at its TRUE location in the
-    CFD mesh frame so it sits inside the fluid point cloud (the coords we return are mesh-frame).
-    Returns JSON-ready [[lo,hi],...]. Without a stored surface, returns the boxes unchanged."""
-    lo = np.min([b[0] for b in boxes], axis=0)
-    hi = np.max([b[1] for b in boxes], axis=0)
+    """Reorient + place the reconstructed heatsink fin boxes to match the solid's TRUE pose in
+    the CFD mesh frame, so they sit inside the fluid point cloud (the coords we return are
+    mesh-frame). The reconstruction is built Z-up (fins along Y); the bsf mesh may be Y-up
+    (fins along Z), so we detect the axis permutation by matching the reconstructed box
+    dimensions to the stored surface bbox dimensions, permute (rotate) the boxes, then translate
+    their center onto the solid's center. Returns JSON-ready [[lo,hi],...]; without a stored
+    surface, returns the boxes unchanged."""
     if surf_bb is None:
         return [[list(map(float, b[0])), list(map(float, b[1]))] for b in boxes]
-    sp_lo, sp_hi = surf_bb
-    off = (np.asarray(sp_lo) + np.asarray(sp_hi)) / 2.0 - (np.asarray(lo) + np.asarray(hi)) / 2.0
-    return [[(np.asarray(b[0]) + off).tolist(), (np.asarray(b[1]) + off).tolist()] for b in boxes]
+    lo = np.min([b[0] for b in boxes], axis=0).astype(float)
+    hi = np.max([b[1] for b in boxes], axis=0).astype(float)
+    sp_lo = np.asarray(surf_bb[0], float); sp_hi = np.asarray(surf_bb[1], float)
+    d_recon = hi - lo
+    d_surf = sp_hi - sp_lo
+    # axis permutation that best matches reconstructed dims to the true solid's dims
+    perm = min(itertools.permutations(range(3)),
+               key=lambda p: float(np.sum(np.abs(d_recon[list(p)] - d_surf))))
+    p = list(perm)
+    pboxes = [(np.asarray(b[0], float)[p], np.asarray(b[1], float)[p]) for b in boxes]
+    plo = np.min([b[0] for b in pboxes], axis=0)
+    phi = np.max([b[1] for b in pboxes], axis=0)
+    off = (sp_lo + sp_hi) / 2.0 - (plo + phi) / 2.0
+    return [[(b[0] + off).tolist(), (b[1] + off).tolist()] for b in pboxes]
 
 
 def _stl_from_cond(cond, name="heatsink"):
