@@ -26,7 +26,13 @@ rigor (new baselines, harder splits, better data) or catch over-claims are all w
 ```bash
 pip install -r requirements.txt
 python -m py_compile kuber/*.py     # syntax check
+pip install pytest && pytest -q     # run the test suite in tests/
 ```
+
+The suite (`tests/`) covers the model's forward shape contract, the nRMSE/relL2 metric
+definitions, the `data_sample/` data contract, and the numerical-stability harness. Tests that
+need the GeoTransolver core (physicsnemo) self-skip where it is not installed, so the suite runs
+on a plain CPU box and in CI.
 
 Keep PRs focused. For anything large (a new device class, a hosted leaderboard), open an issue first
 so we can align on the design.

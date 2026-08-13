@@ -10,6 +10,7 @@ The full stack, from physics-data generation to a deployable, geometry-general s
 [![Project page](https://img.shields.io/badge/%F0%9F%8C%A1%EF%B8%8F%20project%20page-live-2E7D5B.svg)](https://shubhjain007.github.io/Kuber/)
 [![Paper](https://img.shields.io/badge/paper-PDF-B31B1B.svg)](paper/kuber.pdf)
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ShubhJain007/Kuber/blob/main/notebooks/quickstart.ipynb)
+[![tests](https://github.com/ShubhJain007/Kuber/actions/workflows/tests.yml/badge.svg)](https://github.com/ShubhJain007/Kuber/actions/workflows/tests.yml)
 [![License: PolyForm NC](https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0.0-2E7D5B.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-1F4E79.svg)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.x-1F4E79.svg)](https://pytorch.org/)
