@@ -173,22 +173,22 @@ All numbers are for **SurfaceGeoTransolver** (full-geometry input), measured and
 
 ## Roadmap
 
-Kuber is an open **suite**, not a finished benchmark. Here's the plan for the next three months — each milestone ships something concrete.
+Kuber is an open **suite**, not a finished benchmark. Here's what's next — three milestones, each shipping something concrete.
 
-### 🟢 Month 1 — Scale to a polished state of the art
+### 🟢 Milestone 1 — Scale to a polished state of the art
 *Push the model and the corpus; lock in the headline numbers.*
 - [ ] Scale SurfaceGeoTransolver past 14 M params (more physics slices, depth, hidden width) and run the full Warmup–Stable–Decay cosine tail for the final numbers
 - [ ] Grow the corpus well beyond its air-dominated size — far more liquid-cooled cases and fluids (the [value-of-data](docs/RESULTS.md) trend says it still pays off)
 - [ ] Add harder splits: leave-one-fluid-out and leave-one-shape-out
 
-### 🔵 Month 2 — Coverage + the uncertainty pillar
+### 🔵 Milestone 2 — Coverage + the uncertainty pillar
 *Broaden geometry coverage and ship calibrated confidence.*
 - [ ] More cold-plate topologies — serpentine, pin-fin, parallel micro-channel (currently straight-channel only)
 - [ ] New device classes / domains — heat exchangers, power electronics, battery packs
 - [ ] **Calibrated Bayesian uncertainty** — turn the PDE-Refiner denoising ensemble into per-node error bars
 - [ ] Architecture: hierarchical multi-resolution surface tokens + per-block geometry cross-attention
 
-### 🟣 Month 3 — Product: connectors, optimization, deployment
+### 🟣 Milestone 3 — Product: connectors, optimization, deployment
 *Close the loop from CAD to an optimized geometry, served live.*
 - [ ] **CAD connectors** — direct STEP / STL / mesh ingest (no parametric generator needed)
 - [ ] **Agentic geometry optimization** — propose → predict → score → refine against a thermal objective
