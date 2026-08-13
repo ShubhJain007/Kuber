@@ -17,7 +17,10 @@ The full stack, from physics-data generation to a deployable, geometry-general s
 
 </div>
 
-![Coupled fluid–heat fields — heatsink (air, natural convection) and cold plate (liquid, forced), OpenFOAM ground truth](assets/sim/hero.png)
+**Kuber prediction vs. CFD ground truth.** A heatsink (temperature agreement ±2.11 K) and a liquid cold plate (±1.33 K, 445× faster than the CFD solver):
+
+![Heatsink — Kuber prediction vs CFD ground truth (±2.11 K RMSE)](assets/sim/heat-sink-comparison.png)
+![Cold plate — Kuber prediction vs CFD ground truth (±1.33 K RMSE, 445× faster)](assets/sim/cold-plate-comparison.png)
 
 > **Read the [technical report (PDF)](paper/kuber.pdf).** The [project page](https://shubhjain007.github.io/Kuber/) and an [interactive ground-truth-vs-prediction viewer](https://shubhjain007.github.io/Kuber/demo.html) (3D solid geometry + fluid field, heatsink & cold plate) are served from **GitHub Pages**.
 
@@ -131,17 +134,11 @@ All numbers are for **SurfaceGeoTransolver** (full-geometry input), measured and
 
 ![Multi-geometry — one model, heatsinks + cold plates](assets/fig_multigeo.svg)
 
-**Ground truth vs. prediction** — the solid device geometry plus the fluid field, CFD beside Kuber's prediction. [**Open the interactive 3D viewer →**](https://shubhjain007.github.io/Kuber/demo.html)
-
-[![Ground truth vs Kuber prediction — heatsink temperature field](assets/sim/gtvspred.png)](https://shubhjain007.github.io/Kuber/demo.html)
+**Ground truth vs. prediction** — see the heatsink and cold-plate comparisons at the top (Kuber vs CFD, ±2.11 K and ±1.33 K), or [**open the interactive 3D viewer →**](https://shubhjain007.github.io/Kuber/demo.html).
 
 **Dataset.** A self-generated OpenFOAM CHT corpus — 0 cases from SIMSHIFT or any licensed source. A 6-case sample is in [`data_sample/`](data_sample); the contract is in [`docs/DATASET.md`](docs/DATASET.md). Fidelity is verified: prism layers recover the near-wall hot spot to within 0.1 K of a fine mesh at ~2.7× lower cost.
 
 ![The Kuber corpus at a glance](assets/fig_corpus.svg)
-
-| | |
-|---|---|
-| ![Heatsink CFD fields](assets/sim/sim_heatsink.png) | ![Cold plate CFD fields](assets/sim/sim_coldplate.png) |
 
 ## Contributing
 

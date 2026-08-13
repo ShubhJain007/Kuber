@@ -144,8 +144,8 @@ CONTENT = """
       <div class="stat"><div class="num">2</div><div class="lbl">device classes &mdash; heatsinks &amp; cold plates &mdash; from one model</div></div>
       <div class="stat"><div class="num">~14&thinsp;M</div><div class="lbl">parameters, geometry-general (arbitrary CAD)</div></div>
     </div>
-    <figure class="fig">__HERO__<figcaption>Coupled fluid&ndash;heat fields from a single model: a heatsink
-    in natural-convection air and a liquid-cooled cold plate, colored by temperature (OpenFOAM ground truth).</figcaption></figure>
+    <figure class="fig">__CMPHS__<figcaption>Heatsink &mdash; Kuber prediction vs. CFD ground truth (&plusmn;2.11&thinsp;K temperature agreement).</figcaption></figure>
+    <figure class="fig">__CMPCP__<figcaption>Cold plate &mdash; Kuber prediction vs. CFD ground truth (&plusmn;1.33&thinsp;K, 445&times; faster than the CFD solver).</figcaption></figure>
   </section>
 
   <section id="how">
@@ -181,10 +181,7 @@ CONTENT = """
     <p class="section-lede">Distinguished only by a device flag and fluid/BC conditioning, a single model spans a
     buoyancy-driven heatsink in air and a forced-liquid cold plate. Held-out cold plates 3.11&thinsp;K, heatsinks
     5.13&thinsp;K on our corpus (not comparable to the SIMSHIFT numbers).</p>
-    <div class="grid2">
-      <figure class="fig">__MULTIGEO__<figcaption>One SurfaceGeoTransolver, evaluated per device class on held-out cases.</figcaption></figure>
-      <a class="fig-link" href="demo.html"><figure class="fig">__GTPRED__<figcaption>Ground truth vs. prediction &mdash; open the interactive 3D viewer &rarr;</figcaption></figure></a>
-    </div>
+    <figure class="fig">__MULTIGEO__<figcaption>One SurfaceGeoTransolver, evaluated per device class on held-out cases. Per-device prediction-vs-ground-truth comparisons are at the top; explore the <a href="demo.html">interactive viewer</a>.</figcaption></figure>
   </section>
 
   <section id="dataset">
@@ -193,10 +190,6 @@ CONTENT = """
     <p class="section-lede">Parametric geometry &rarr; OpenFOAM <code>buoyantSimpleFoam</code> &rarr; per-node fields,
     resumable and convergence-gated. Zero cases from SIMSHIFT or any licensed source.</p>
     <figure class="fig">__CORPUS__<figcaption>Corpus coverage &mdash; fluids, regimes, shapes, device classes.</figcaption></figure>
-    <div class="grid2">
-      <figure class="fig">__SIMHS__<figcaption>Heatsink &mdash; temperature and velocity magnitude (air, natural convection).</figcaption></figure>
-      <figure class="fig">__SIMCP__<figcaption>Cold plate &mdash; temperature and velocity magnitude (liquid, forced).</figcaption></figure>
-    </div>
   </section>
 </main>
 
@@ -208,10 +201,8 @@ CONTENT = """
 """
 
 CONTENT = (CONTENT
-           .replace("__HERO__", f'<img src="{png_uri("hero.png")}" alt="Heatsink and cold-plate temperature fields">')
-           .replace("__SIMHS__", f'<img src="{png_uri("sim_heatsink.png")}" alt="Heatsink temperature and velocity fields">')
-           .replace("__SIMCP__", f'<img src="{png_uri("sim_coldplate.png")}" alt="Cold plate temperature and velocity fields">')
-           .replace("__GTPRED__", f'<img src="{png_uri("gtvspred.png")}" alt="Ground truth vs Kuber prediction">')
+           .replace("__CMPHS__", '<img src="' + png_uri("heat-sink-comparison.png") + '" alt="Heatsink — Kuber prediction vs CFD ground truth">')
+           .replace("__CMPCP__", '<img src="' + png_uri("cold-plate-comparison.png") + '" alt="Cold plate — Kuber prediction vs CFD ground truth">')
            .replace("__ARCH__", '<img src="' + png_uri("architecture.png") + '" alt="SurfaceGeoTransolver architecture">')
            .replace("__LEADERBOARD__", svg_inline("fig_leaderboard.svg"))
            .replace("__INDIST__", svg_inline("fig_indist_vs_ood.svg"))

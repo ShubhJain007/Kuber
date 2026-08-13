@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Train a ThermaBench baseline. Usage:
+# Train a Kuber baseline. Usage:
 #   scripts/train.sh <data_dir> <splits.json> [geom_mode] [difficulty]
 # geom_mode ∈ {none, sdf, dsdf, surface}   (default: surface)
 # difficulty ∈ {easy, medium, hard}        (default: medium)
