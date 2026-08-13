@@ -47,10 +47,11 @@ def knn_idx(query, ref, k):
 
 
 class LocalSurfaceCrossAttention(nn.Module):
-    """Volume points cross-attend to their K-nearest surface tokens (relative-position keys).
-    (vol_coords[B,N,3], surf_pts[B,Ns,3], surf_tok[B,Ns,d]) -> descriptor [B,N,d_out]."""
+    """Volume points cross-attend to their K-nearest surface tokens (relative-position keys), with
+    optional Anisotropic Boundary-Layer (ABL) attention.
+    (vol_coords[B,N,3], surf_pts[B,Ns,3], surf_tok[B,Ns,d], surf_normals[B,Ns,3]) -> [B,N,d_out]."""
 
-    def __init__(self, d_tok=128, d_out=128, n_head=4, k=16):
+    def __init__(self, d_tok=128, d_out=128, n_head=4, k=16, abl=True):
         super().__init__()
         assert d_out % n_head == 0, "d_out must be divisible by n_head"
         self.k, self.n_head, self.dh = k, n_head, d_out // n_head
@@ -59,8 +60,13 @@ class LocalSurfaceCrossAttention(nn.Module):
         self.kproj = nn.Linear(d_tok, d_out)
         self.vproj = nn.Linear(d_tok, d_out)
         self.out = nn.Linear(d_out, d_out)
+        # ABL-Attention: penalize the wall-normal component of the query->node displacement so
+        # boundary-layer queries attend along the wall, not across it. gamma = softplus(.) >= 0, learned.
+        self.abl = abl
+        if abl:
+            self.gamma_raw = nn.Parameter(torch.zeros(()))       # gamma = softplus(0) ~ 0.69 at init
 
-    def forward(self, vol_coords, surf_pts, surf_tok):
+    def forward(self, vol_coords, surf_pts, surf_tok, surf_normals=None):
         B, N, _ = vol_coords.shape
         Ns = surf_pts.shape[1]
         assert surf_tok.shape[:2] == (B, Ns), f"token/point mismatch {surf_tok.shape} vs {surf_pts.shape}"
@@ -82,6 +88,17 @@ class LocalSurfaceCrossAttention(nn.Module):
         keys = keys.view(B, N, k, self.n_head, self.dh)
         vals = vals.view(B, N, k, self.n_head, self.dh)
         logits = torch.einsum("bnhd,bnkhd->bnhk", q, keys) / (self.dh ** 0.5)   # [B,N,H,k]
+
+        # ABL-Attention: subtract a learned penalty on the WALL-NORMAL component of the displacement,
+        # |(x_j - p_i).n_i|, so queries in thin boundary layers weight surface nodes directly beneath
+        # them instead of Euclidean-close nodes across the wall or on a different face.
+        if self.abl and surf_normals is not None:
+            gn = idx.unsqueeze(-1).expand(-1, -1, -1, 3)
+            neigh_nrm = torch.gather(surf_normals.unsqueeze(1).expand(-1, N, -1, -1), 2, gn)  # [B,N,k,3]
+            off_normal = (rel * neigh_nrm).sum(-1).abs()         # |(x_j - p_i)·n_i|  [B,N,k]
+            gamma = F.softplus(self.gamma_raw)                   # gamma > 0, learned
+            logits = logits - gamma * off_normal.unsqueeze(2)    # broadcast over heads -> [B,N,H,k]
+
         attn = logits.softmax(dim=-1)
         ctx = torch.einsum("bnhk,bnkhd->bnhd", attn, vals).reshape(B, N, -1)    # [B,N,d_out]
         return self.out(ctx)                                     # [B,N,d_out]

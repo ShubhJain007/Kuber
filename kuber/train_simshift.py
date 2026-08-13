@@ -455,7 +455,7 @@ def _dims_from(cfg, a):
                 d_surf=g("d_surf", a.d_surf), d_geo=g("d_geo", a.d_geo),
                 surf_layers=g("surf_layers", a.surf_layers), surf_head=g("surf_head", a.surf_head),
                 geo_head=g("geo_head", a.geo_head), knn_k=g("knn_k", a.knn_k),
-                geom_wiring=g("geom_wiring", a.geom_wiring),
+                geom_wiring=g("geom_wiring", a.geom_wiring), abl=g("abl", getattr(a, "abl", True)),
                 refine=g("refine", a.refine), refine_steps=g("refine_steps", a.refine_steps),
                 sigma_min=g("sigma_min", a.sigma_min))
 
@@ -468,7 +468,7 @@ def _build_model(geom_mode, cond_dim, feat_dim, d, dev, GeoTransolver):
         net = SurfaceGeoTransolver(
             cond_dim=feat_dim, out_dim=5, geom_wiring=d["geom_wiring"], refiner_inputs=refine,  # feat_dim = cond + extent (+sdf); all per-node scalars
             d_surf=d["d_surf"], n_surf_layers=d["surf_layers"], n_surf_head=d["surf_head"],
-            d_geo=d["d_geo"], geo_head=d["geo_head"], k=d["knn_k"],
+            d_geo=d["d_geo"], geo_head=d["geo_head"], k=d["knn_k"], abl=d.get("abl", True),
             n_hidden=d["n_hidden"], n_layers=d["n_layers"], n_head=d["n_head"], slice_num=d["slice_num"],
             include_local_features=not d["no_local"], n_hidden_local=d["n_hidden_local"],
             radii=d["radii"], neighbors=d["neighbors"]).to(dev)
@@ -561,7 +561,7 @@ def run(a):
     dims = dict(n_hidden=n_hidden, n_layers=n_layers, n_head=a.n_head, slice_num=slice_num,
                 n_hidden_local=n_hidden_local, radii=a.radii, neighbors=a.neighbors, no_local=a.no_local,
                 d_surf=d_surf, d_geo=d_geo, surf_layers=surf_layers, surf_head=a.surf_head,
-                geo_head=a.geo_head, knn_k=knn_k, geom_wiring=a.geom_wiring,
+                geo_head=a.geo_head, knn_k=knn_k, geom_wiring=a.geom_wiring, abl=a.abl,
                 refine=a.refine, refine_steps=a.refine_steps, sigma_min=a.sigma_min)
     model, is_refiner = _build_model(geom_mode, meta["cond_dim"], meta["feat_dim"], dims, dev, GeoTransolver)
     nparams = sum(p.numel() for p in model.parameters()) / 1e6
@@ -721,6 +721,9 @@ if __name__ == "__main__":
     p.add_argument("--knn_k", type=int, default=16, help="nearest surface tokens per volume point")
     p.add_argument("--geom_wiring", choices=["concat", "deep"], default="concat",
                    help="surface conditioning: concat (shallow) or deep (AB-UPT native geometry branch on surface cloud)")
+    p.add_argument("--abl", dest="abl", action="store_true", help="Anisotropic Boundary-Layer cross-attention (default on)")
+    p.add_argument("--no_abl", dest="abl", action="store_false", help="disable ABL: isotropic kNN cross-attention (baseline)")
+    p.set_defaults(abl=True)
     # PDE-Refiner (generative denoising refinement; requires --geom_mode surface)
     p.add_argument("--refine", action="store_true", help="wrap model in PDE-Refiner (denoising refinement)")
     p.add_argument("--refine_steps", type=int, default=3, help="K refinement/denoising steps")

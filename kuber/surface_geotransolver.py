@@ -43,7 +43,7 @@ class SurfaceGeoTransolver(nn.Module):
     def __init__(self, cond_dim, out_dim=5, geom_wiring="concat", refiner_inputs=False,
                  step_emb_dim=16,
                  # surface branch
-                 d_surf=128, n_surf_layers=2, n_surf_head=4, d_geo=64, geo_head=4, k=16,
+                 d_surf=128, n_surf_layers=2, n_surf_head=4, d_geo=64, geo_head=4, k=16, abl=True,
                  # GeoTransolver core
                  n_hidden=256, n_layers=12, n_head=8, slice_num=64,
                  include_local_features=True, n_hidden_local=32,
@@ -61,7 +61,7 @@ class SurfaceGeoTransolver(nn.Module):
         # (per-block cross-attention, AB-UPT-style) — no custom modules needed.
         if geom_wiring == "concat":
             self.encoder = SurfaceGeometryEncoder(d=d_surf, n_layers=n_surf_layers, n_head=n_surf_head)
-            self.cross = LocalSurfaceCrossAttention(d_tok=d_surf, d_out=d_geo, n_head=geo_head, k=k)
+            self.cross = LocalSurfaceCrossAttention(d_tok=d_surf, d_out=d_geo, n_head=geo_head, k=k, abl=abl)
         if refiner_inputs:
             self.step_mlp = nn.Sequential(nn.Linear(step_emb_dim, step_emb_dim), nn.GELU(),
                                           nn.Linear(step_emb_dim, step_emb_dim))
@@ -85,7 +85,7 @@ class SurfaceGeoTransolver(nn.Module):
 
         if self.geom_wiring == "concat":
             Zg = self.encoder(surf_pts, surf_normals)          # [B,Ns,d_surf]
-            geo = self.cross(vol_coords, surf_pts, Zg)         # [B,N,d_geo] learned descriptor
+            geo = self.cross(vol_coords, surf_pts, Zg, surf_normals)   # [B,N,d_geo] learned descriptor
             parts.append(geo)
             geom_in = vol_coords                               # core geometry = volume coords
         else:  # deep: raw surface cloud drives the core's native geometry cross-attention
