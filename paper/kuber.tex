@@ -22,7 +22,7 @@
 \begin{abstract}
 Conjugate heat transfer (CHT)---the coupled transport of heat through a solid conductor and a
 surrounding moving fluid---governs the thermal design of heatsinks, cold plates, heat exchangers,
-power electronics, and battery packs. High-fidelity CFD resolves these fields but costs minutes to
+power electronics, and battery packs. High-fidelity computational fluid dynamics (CFD) resolves these fields but costs minutes to
 hours per geometry, prohibitive inside a design loop. We present \textbf{Kuber}, an open framework for
 building neural surrogates of CHT, and \textbf{SurfaceGeoTransolver}, a geometry-general model that
 predicts the full steady field $(U,T,p)$ at an arbitrary query point cloud in a sub-second. The model
@@ -82,13 +82,13 @@ faster than the CFD solver.}
 \textit{Neural operators.} DeepONet~\cite{deeponet} and the Fourier Neural Operator~\cite{fno}
 established learning maps between function spaces; GINO~\cite{gino} extended operator learning to
 large 3D geometries. These are strong on fixed domains but do not natively consume arbitrary boundary
-geometry with per-node queries. \textit{Transformer PDE solvers.} Transolver~\cite{transolver}
+geometry with per-node queries. \textit{Transformer PDE (partial-differential-equation) solvers.} Transolver~\cite{transolver}
 introduced physics attention over learned slices; UPT~\cite{upt} and the anchored/branched
 variant~\cite{abupt} scale transformer surrogates to industrial CFD. Our core builds on the
 GeoTransolver implementation in NVIDIA PhysicsNeMo~\cite{physicsnemo}; our contribution is the
 surface-conditioning branch and the CHT-specific conditioning and training recipe.
-\textit{Geometry representations.} Signed-distance fields are data-efficient when an analytic shape
-exists, but none exists for arbitrary CAD; following the surface branch of AB-UPT~\cite{abupt} we
+\textit{Geometry representations.} Signed-distance fields (SDFs) are data-efficient when an analytic shape
+exists, but none exists for arbitrary CAD (computer-aided-design geometry); following the surface branch of AB-UPT~\cite{abupt} we
 encode the boundary directly as a point cloud with normals. \textit{Spectral fidelity.} One-shot
 regression is spectrally biased; PDE-Refiner~\cite{pderefiner} restores high-frequency content, which
 we adopt as an optional head. \textit{Benchmarks.} SIMSHIFT~\cite{simshift} is a public benchmark for
@@ -103,7 +103,7 @@ f_\theta:\ (x,\ \Gamma,\ c)\ \mapsto\ (U_x,U_y,U_z,T,p_{\mathrm{rgh}}),
 \end{equation}
 where $U$ is velocity, $T$ temperature, and $p_{\mathrm{rgh}}=p-\rho g h$ the reduced pressure. The
 conditioning vector $c$ collects fluid properties (Prandtl number, density, specific heat, dynamic
-viscosity), boundary conditions (a wall temperature for heatsinks or a heat flux for cold plates, and
+viscosity), boundary conditions (BCs; a wall temperature for heatsinks or a heat flux for cold plates, and
 the ambient/inlet temperature), inlet velocity, and a binary device-class flag. The boundary $\Gamma$
 is presented as surface points with outward unit normals. Nothing in the input assumes a parametric
 shape family.
@@ -116,21 +116,21 @@ for every query node, a geometry descriptor by attending over its $k{=}16$ neare
 each query carries a local view of the nearby boundary. This descriptor is concatenated with the
 broadcast conditioning vector to form the per-node embedding. The \textbf{core} is a GeoTransolver
 physics-attention transformer (256 hidden units, 12 layers, 8 heads, 64 physics slices, with
-multiscale local ball-query features) that regresses the five $z$-normalized targets. The model has
-approximately 14.3\,M parameters. An optional PDE-Refiner~\cite{pderefiner} head can replace one-shot
-regression; results below use the one-shot model. Geometry may alternatively be supplied as a
+multiscale local ball-query features) that regresses the five $z$-normalized (standardized: zero mean, unit variance) targets. The model has
+approximately 14.3\,M parameters. An optional PDE-Refiner head can replace one-shot
+regression (detailed below). Geometry may alternatively be supplied as a
 (directional) signed-distance field for parametric families, but the surface-encoder configuration is
 the one we report because it is the only one applicable to arbitrary CAD.
 
 Formally, write the surface as points $p_i\in\mathbb{R}^3$ with unit normals $n_i$ ($i{=}1{\dots}N_s$),
 the query cloud as $x_j$ ($j{=}1{\dots}N$), and the conditioning as $c\in\mathbb{R}^C$. The surface
-encoder embeds each element and applies an $L_s$-layer pre-norm Transformer with multi-head
+encoder embeds each element with a multi-layer perceptron (MLP) and applies an $L_s$-layer pre-norm Transformer with multi-head
 self-attention (MHSA):
 \begin{equation}
 h_i^0=\mathrm{MLP}([p_i;n_i]),\ \ H\!\leftarrow\!H+\mathrm{MHSA}(\mathrm{LN}\,H),\ \ H\!\leftarrow\!H+\mathrm{FFN}(\mathrm{LN}\,H),
 \end{equation}
 with $\mathrm{MHSA}(Q,K,V)=\mathrm{softmax}(QK^\top/\sqrt{d})V$, yielding geometry tokens $z_i=H_i^{(L_s)}$.
-For each query $x_j$, let $\mathcal{N}_k(j)$ be its $k$ nearest surface points; with relative positions
+For each query $x_j$, let $\mathcal{N}_k(j)$ be its $k$ nearest surface points (k-nearest neighbors, kNN); with relative positions
 $r_{ji}=x_j-p_i$, learned bias $b_{ji}=\mathrm{MLP}_r(r_{ji})$, and query $q_j=\mathrm{MLP}_q(x_j)$, the
 local geometry descriptor is
 \begin{equation}
@@ -156,6 +156,13 @@ units:
 \mathcal{L}(\theta)=\frac{1}{BN}\sum_{b,j}\lVert\hat{y}_{bj}-y_{bj}\rVert^2,\quad
 \text{field}=\hat{y}_j\odot\sigma_y+\mu_y.
 \end{equation}
+Here $N_s$ and $N$ are the numbers of surface and query points and $C$ the number of conditioning
+scalars; $L_s,L_c$ the encoder and core depths and $M$ the slice count; $d,d_h$ the model and per-head
+attention widths and $d_s,d_g$ the token and descriptor widths; $Q,K,V$ the attention query/key/value
+matrices; $W_K,W_V,W_O,W_o$ learned projection matrices and $\theta_m$ the $M$ learned slice queries;
+$\sigma_y,\mu_y$ the per-channel target standard deviation and mean, $\odot$ the elementwise product, $B$
+the batch size, and $\theta$ all trainable parameters. Every MLP is two-layer with a GELU activation;
+FFN denotes a feed-forward network and LN layer normalization.
 
 \begin{figure*}[t]
 \centering
@@ -166,6 +173,29 @@ cross-attention $\rightarrow$ concatenated per-node embedding $\rightarrow$ GeoT
 physics-attention core) that predicts the five-channel field at every query node.}
 \label{fig:arch}
 \end{figure*}
+
+\subsection{PDE-Refiner Head (Optional)}
+\textit{Why we use it.} One-shot regression under a mean-squared-error loss is \emph{spectrally biased}:
+low-amplitude high-frequency modes---sharp fin-tip gradients, thin thermal boundary layers---contribute
+little to the squared error, so a single forward pass tends to over-smooth them. PDE-Refiner~\cite{pderefiner}
+removes this bias by casting field prediction as an iterative \emph{denoising} process, whose training
+objective forces the network to represent structure at every spatial frequency; as a by-product,
+sampling the noise yields an ensemble and hence an uncertainty estimate.
+
+\textit{How we use it.} The same network $f_\theta$ serves as both the signal predictor and the
+denoiser, conditioned on a refinement step $k\in\{0,\dots,K\}$ through a sinusoidal step embedding and an
+extra noised-field input channel. With a geometric noise schedule $\sigma_k=\sigma_{\min}^{\,k/K}$
+($\sigma_0=0$), each training sample draws $k\sim\mathrm{Uniform}\{0,\dots,K\}$: at $k{=}0$ the network
+regresses the field $y$ from the conditioning; at $k\ge1$ it is given the target corrupted by noise,
+$y+\sigma_k\epsilon$ ($\epsilon\sim\mathcal{N}(0,I)$), and regresses the noise $\epsilon$. At inference we
+take the initial one-shot prediction and apply $K$ refinement steps,
+\begin{equation}
+u\leftarrow f_\theta(\cdot,0);\quad k{=}1{\dots}K:\ \ u\leftarrow(u+\sigma_k\epsilon)-\sigma_k\,f_\theta(u+\sigma_k\epsilon,\,k),
+\end{equation}
+so each step subtracts the network's predicted noise and restores fine structure; drawing several noise
+seeds $\epsilon$ gives an ensemble whose spread is a calibrated uncertainty. All results in this paper
+use the one-shot model ($k{=}0$ only); the refiner is a drop-in head for applications that need spectral
+fidelity or uncertainty, and seeds the Uncertainty pillar of the suite.
 
 \subsection{Data Engine}
 We generate CHT data with OpenFOAM's steady buoyant solver (\texttt{buoyantSimpleFoam}) over a single
@@ -192,9 +222,9 @@ Fidelity & $\approx$1.4\,M cells/case $\rightarrow$ 16{,}384 nodes \\ \bottomrul
 
 \section{Experimental Setup}
 \textit{Benchmark.} Our primary, externally comparable evaluation is the SIMSHIFT~\cite{simshift}
-heatsink task at \emph{medium} difficulty: train on fin counts 5--8, test on the shifted target of fin
+heatsink task at \emph{medium} difficulty: train on fin counts 5--8, test on the shifted, out-of-distribution (OOD) target of fin
 counts 10--12, which never appear in training. We train from scratch on the 222 training cases;
-normalizers are fit on the source training split only. \textit{Metrics.} We report per-field RMSE in
+normalizers are fit on the source training split only. \textit{Metrics.} We report per-field root-mean-square error (RMSE) in
 physical units and normalized RMSE (nRMSE); the benchmark's primary selector is mean nRMSE across the
 five fields. We additionally report near-wall $T$-RMSE and edge gradient ratios (Sec.~\ref{sec:stab}).
 No baseline uses unsupervised domain adaptation (UDA) in our runs; the published baselines do, which

@@ -55,7 +55,7 @@ i, em { font-style: italic; }
 <p class="abstract"><span class="lead">Abstract&mdash;</span>Conjugate heat transfer (CHT) &mdash; the
 coupled transport of heat through a solid conductor and a surrounding moving fluid &mdash; governs the
 thermal design of heatsinks, cold plates, heat exchangers, power electronics, and battery packs.
-High-fidelity CFD resolves these fields but costs minutes to hours per geometry, prohibitive inside a
+High-fidelity computational fluid dynamics (CFD) resolves these fields but costs minutes to hours per geometry, prohibitive inside a
 design loop. We present Kuber, an open framework for building neural surrogates of CHT, and
 SurfaceGeoTransolver, a geometry-general model that predicts the full steady field <i>(U, T, p)</i> at
 an arbitrary query point cloud in a sub-second. The model couples a physics-attention transformer core
@@ -110,12 +110,12 @@ results, and an interactive viewer.</p>
 <p><i>Neural operators.</i> DeepONet [7] and the Fourier Neural Operator [6] established learning maps
 between function spaces; GINO [8] extended operator learning to large 3D geometries. These are strong
 on fixed domains but do not natively consume arbitrary boundary geometry with per-node queries.
-<i>Transformer PDE solvers.</i> Transolver [3] introduced physics attention over learned slices; UPT
+<i>Transformer PDE (partial-differential-equation) solvers.</i> Transolver [3] introduced physics attention over learned slices; UPT
 [4] and the anchored/branched variant (AB-UPT) [5] scale transformer surrogates to industrial CFD. Our
 core builds on the GeoTransolver implementation in NVIDIA PhysicsNeMo [10]; our contribution is the
 surface-conditioning branch and the CHT-specific conditioning and training recipe.
-<i>Geometry representations.</i> Signed-distance fields are data-efficient when an analytic shape
-exists, but none exists for arbitrary CAD; following the surface branch of AB-UPT [5] we encode the
+<i>Geometry representations.</i> Signed-distance fields (SDFs) are data-efficient when an analytic shape
+exists, but none exists for arbitrary CAD (computer-aided-design geometry); following the surface branch of AB-UPT [5] we encode the
 boundary directly as a point cloud with normals. <i>Spectral fidelity.</i> One-shot regression is
 spectrally biased; PDE-Refiner [9] restores high-frequency content, which we adopt as an optional
 head. <i>Benchmarks.</i> SIMSHIFT [2] is a public benchmark for distribution shift in engineering
@@ -130,7 +130,7 @@ field at any query point <i>x</i>&thinsp;&isin;&thinsp;<span>&Omega;</span>:</p>
 p</i><sub>rgh</sub>),<span class="num">(1)</span></p>
 <p>where <i>U</i> is velocity, <i>T</i> temperature, and <i>p</i><sub>rgh</sub>&thinsp;=&thinsp;<i>p
 &minus; &rho;gh</i> the reduced pressure. The conditioning vector <i>c</i> collects fluid properties
-(Prandtl number, density, specific heat, dynamic viscosity), boundary conditions (a wall temperature
+(Prandtl number, density, specific heat, dynamic viscosity), boundary conditions (BCs; a wall temperature
 for heatsinks or a heat flux for cold plates, and the ambient/inlet temperature), inlet velocity, and
 a binary device-class flag. The boundary <span>&Gamma;</span> is presented as surface points with
 outward unit normals. Nothing in the input assumes a parametric shape family.</p>
@@ -143,23 +143,23 @@ for every query node, a geometry descriptor by attending over its <i>k</i>&thins
 surface tokens, so each query carries a local view of the nearby boundary. This descriptor is
 concatenated with the broadcast conditioning vector to form the per-node embedding. The <i>core</i> is
 a GeoTransolver physics-attention transformer (256 hidden units, 12 layers, 8 heads, 64 physics slices,
-with multiscale local ball-query features) that regresses the five z-normalized targets. The model has
-approximately 14.3&thinsp;M parameters. An optional PDE-Refiner [9] head can replace one-shot
-regression; results below use the one-shot model. Geometry may alternatively be supplied as a
+with multiscale local ball-query features) that regresses the five z-normalized (standardized: zero mean, unit variance) targets. The model has
+approximately 14.3&thinsp;M parameters. An optional PDE-Refiner head can replace one-shot
+regression (detailed in Sec.&thinsp;IV-B). Geometry may alternatively be supplied as a
 (directional) signed-distance field for parametric families, but the surface-encoder configuration is
 the one we report because it is the only one applicable to arbitrary CAD.</p>
 
 <p>Formally, write the surface as points <i>p<sub>i</sub></i>&thinsp;&isin;&thinsp;&#8477;<sup>3</sup> with unit
 normals <i>n<sub>i</sub></i> (<i>i</i>&thinsp;=&thinsp;1&hellip;N<sub>s</sub>), the query cloud as
 <i>x<sub>j</sub></i> (<i>j</i>&thinsp;=&thinsp;1&hellip;N), and the conditioning as
-<i>c</i>&thinsp;&isin;&thinsp;&#8477;<sup>C</sup>. The <i>surface encoder</i> embeds each element and applies an
-<i>L<sub>s</sub></i>-layer pre-norm Transformer with multi-head self-attention (MHSA):</p>
+<i>c</i>&thinsp;&isin;&thinsp;&#8477;<sup>C</sup>. The <i>surface encoder</i> embeds each element with a multi-layer perceptron (MLP) and applies an
+<i>L<sub>s</sub></i>-layer pre-norm Transformer of multi-head self-attention (MHSA), feed-forward networks (FFN), and layer normalization (LN):</p>
 <p class="eq"><i>h<sub>i</sub></i><sup>0</sup>&thinsp;=&thinsp;MLP([<i>p<sub>i</sub></i>;&thinsp;<i>n<sub>i</sub></i>]),&emsp;
 <i>H</i>&thinsp;&larr;&thinsp;<i>H</i>&thinsp;+&thinsp;MHSA(LN&thinsp;<i>H</i>),&emsp;
 <i>H</i>&thinsp;&larr;&thinsp;<i>H</i>&thinsp;+&thinsp;FFN(LN&thinsp;<i>H</i>),&emsp;
 MHSA(<i>Q,K,V</i>)&thinsp;=&thinsp;softmax(<i>QK</i><sup>&#8868;</sup>/&radic;<i>d</i>)<i>V</i>,<span class="num">(2)</span></p>
 <p>yielding geometry tokens <i>z<sub>i</sub></i>&thinsp;=&thinsp;<i>H<sub>i</sub></i><sup>(L<sub>s</sub>)</sup>. For each
-query <i>x<sub>j</sub></i>, let <i>N<sub>k</sub></i>(<i>j</i>) be its <i>k</i> nearest surface points; with relative
+query <i>x<sub>j</sub></i>, let <i>N<sub>k</sub></i>(<i>j</i>) be its <i>k</i> nearest surface points (k-nearest neighbors, kNN); with relative
 positions <i>r<sub>ji</sub></i>&thinsp;=&thinsp;<i>x<sub>j</sub></i>&minus;<i>p<sub>i</sub></i>, learned bias
 <i>b<sub>ji</sub></i>&thinsp;=&thinsp;MLP<sub>r</sub>(<i>r<sub>ji</sub></i>), and query
 <i>q<sub>j</sub></i>&thinsp;=&thinsp;MLP<sub>q</sub>(<i>x<sub>j</sub></i>), the <i>local geometry descriptor</i> is</p>
@@ -182,6 +182,15 @@ mean-squared error and de-normalized to physical units:</p>
 <p class="eq"><i>&#375;<sub>j</sub></i>&thinsp;=&thinsp;<i>W<sub>o</sub>u<sub>j</sub></i><sup>(L<sub>c</sub>)</sup>&thinsp;&isin;&thinsp;&#8477;<sup>5</sup>,&emsp;
 &#8466;(<i>&theta;</i>)&thinsp;=&thinsp;(1/<i>BN</i>)&#8201;&sum;<sub><i>b,j</i></sub>&#8201;&#8214;<i>&#375;<sub>bj</sub></i>&minus;<i>y<sub>bj</sub></i>&#8214;<sup>2</sup>,&emsp;
 field&thinsp;=&thinsp;<i>&#375;<sub>j</sub></i>&#8857;<i>&sigma;<sub>y</sub></i>&thinsp;+&thinsp;<i>&mu;<sub>y</sub></i>.<span class="num">(5)</span></p>
+<p>Here <i>N<sub>s</sub></i> and <i>N</i> are the numbers of surface and query points and <i>C</i> the
+number of conditioning scalars; <i>L<sub>s</sub></i>, <i>L<sub>c</sub></i> the encoder and core depths and
+<i>M</i> the slice count; <i>d</i>, <i>d<sub>h</sub></i> the model and per-head attention widths and
+<i>d<sub>s</sub></i>, <i>d<sub>g</sub></i> the token and descriptor widths; <i>Q, K, V</i> the attention
+query/key/value matrices; <i>W<sub>K</sub></i>, <i>W<sub>V</sub></i>, <i>W<sub>O</sub></i>,
+<i>W<sub>o</sub></i> learned projection matrices and <i>&theta;<sub>m</sub></i> the <i>M</i> learned slice
+queries; <i>&sigma;<sub>y</sub></i>, <i>&mu;<sub>y</sub></i> the per-channel target standard deviation and
+mean, &#8857; the elementwise product, <i>B</i> the batch size, and <i>&theta;</i> all trainable
+parameters. Every MLP is two-layer with a GELU activation.</p>
 
 <figure class="wide">
   <img src="../assets/sim/architecture.png" alt="SurfaceGeoTransolver architecture">
@@ -191,7 +200,34 @@ field&thinsp;=&thinsp;<i>&#375;<sub>j</sub></i>&#8857;<i>&sigma;<sub>y</sub></i>
   GeoTransolver physics-attention core) that predicts the five-channel field at every query node.</figcaption>
 </figure>
 
-<h3>B.&ensp;Data Engine</h3>
+<h3>B.&ensp;PDE-Refiner Head (Optional)</h3>
+<p><i>Why we use it.</i> One-shot regression under a mean-squared-error loss is <i>spectrally biased</i>:
+low-amplitude high-frequency modes &mdash; sharp fin-tip gradients, thin thermal boundary layers &mdash;
+contribute little to the squared error, so a single forward pass tends to over-smooth them. PDE-Refiner
+[9] removes this bias by casting field prediction as an iterative <i>denoising</i> process, whose
+training objective forces the network to represent structure at every spatial frequency; as a
+by-product, sampling the noise yields an ensemble and hence an uncertainty estimate.</p>
+<p><i>How we use it.</i> The same network <i>f<sub>&theta;</sub></i> serves as both the signal predictor
+and the denoiser, conditioned on a refinement step <i>k</i>&thinsp;&isin;&thinsp;{0,&hellip;,<i>K</i>}
+through a sinusoidal step embedding and an extra noised-field input channel. With a geometric noise
+schedule <i>&sigma;<sub>k</sub></i>&thinsp;=&thinsp;<i>&sigma;</i><sub>min</sub><sup>&thinsp;k/K</sup>
+(<i>&sigma;</i><sub>0</sub>&thinsp;=&thinsp;0), each training sample draws
+<i>k</i>&thinsp;~&thinsp;Uniform{0,&hellip;,<i>K</i>}: at <i>k</i>&thinsp;=&thinsp;0 the network regresses
+the field <i>y</i> from the conditioning; at <i>k</i>&thinsp;&#8805;&thinsp;1 it is given the target
+corrupted by noise, <i>y</i>&thinsp;+&thinsp;<i>&sigma;<sub>k</sub></i>&#8201;<i>&epsilon;</i>
+(<i>&epsilon;</i>&thinsp;~&thinsp;<i>&Nscr;</i>(0,&thinsp;<i>I</i>)), and regresses the noise
+<i>&epsilon;</i>. At inference we take the initial one-shot prediction and apply <i>K</i> refinement
+steps,</p>
+<p class="eq"><i>u</i>&thinsp;&larr;&thinsp;<i>f<sub>&theta;</sub></i>(&middot;,&thinsp;0);&emsp;
+<i>k</i>&thinsp;=&thinsp;1&hellip;<i>K</i>:&emsp;
+<i>u</i>&thinsp;&larr;&thinsp;(<i>u</i>&thinsp;+&thinsp;<i>&sigma;<sub>k</sub></i>&#8201;<i>&epsilon;</i>)
+&thinsp;&minus;&thinsp;<i>&sigma;<sub>k</sub></i>&#8201;<i>f<sub>&theta;</sub></i>(<i>u</i>&thinsp;+&thinsp;<i>&sigma;<sub>k</sub></i>&#8201;<i>&epsilon;</i>,&thinsp;<i>k</i>),<span class="num">(6)</span></p>
+<p>so each step subtracts the network's predicted noise and restores fine structure; drawing several
+noise seeds <i>&epsilon;</i> gives an ensemble whose spread is a calibrated uncertainty. All results in
+this paper use the one-shot model (<i>k</i>&thinsp;=&thinsp;0 only); the refiner is a drop-in head for
+applications that need spectral fidelity or uncertainty, and seeds the Uncertainty pillar of the suite.</p>
+
+<h3>C.&ensp;Data Engine</h3>
 <p>We generate CHT data with OpenFOAM's steady buoyant solver (buoyantSimpleFoam) over a single fluid
 region, treating the solid as a heated wall (heatsinks) or heat-flux surface (cold plates). A
 parametric generator samples geometry and conditions; the geometry is meshed with blockMesh and
@@ -215,9 +251,9 @@ self-generated (Table&nbsp;I).</p>
 
 <h2>V.&ensp;Experimental Setup</h2>
 <p><i>Benchmark.</i> Our primary, externally comparable evaluation is the SIMSHIFT [2] heatsink task
-at <i>medium</i> difficulty: train on fin counts 5&ndash;8, test on the shifted target of fin counts
+at <i>medium</i> difficulty: train on fin counts 5&ndash;8, test on the shifted, out-of-distribution (OOD) target of fin counts
 10&ndash;12, which never appear in training. We train from scratch on the 222 training cases;
-normalizers are fit on the source training split only. <i>Metrics.</i> We report per-field RMSE in
+normalizers are fit on the source training split only. <i>Metrics.</i> We report per-field root-mean-square error (RMSE) in
 physical units and normalized RMSE (nRMSE); the benchmark's primary selector is mean nRMSE across the
 five fields. We additionally report near-wall <i>T</i>-RMSE and edge gradient ratios (Sec.&nbsp;VI-D).
 No baseline uses unsupervised domain adaptation (UDA) in our runs; the published baselines do, which is
