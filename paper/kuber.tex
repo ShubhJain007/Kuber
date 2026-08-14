@@ -29,7 +29,7 @@ predicts the full steady field $(U,T,p)$ at an arbitrary query point cloud in a 
 couples a physics-attention transformer core with a surface-geometry encoder, so it ingests raw
 boundary geometry (a surface point cloud with normals) and requires no analytic signed-distance
 field, and it is conditioned on the full set of physical scalars plus a device-class flag. Its surface
-cross-attention is \emph{anisotropic}: a learned wall-normal penalty (ABL attention) biases each query to
+cross-attention adds a learned wall-normal penalty---\emph{anisotropic boundary-layer} (ABL) attention---that biases each query to
 attend along the boundary rather than across it, mirroring the structure of a thermal boundary layer. On the
 public SIMSHIFT heatsink benchmark it attains \textbf{11.84\,K temperature RMSE} on the medium
 out-of-distribution split, improving on the best previously published result (12.41\,K) while using
@@ -86,12 +86,12 @@ faster than the CFD solver.}
 established learning maps between function spaces; GINO~\cite{gino} extended operator learning to
 large 3D geometries. These are strong on fixed domains but do not natively consume arbitrary boundary
 geometry with per-node queries. \textit{Transformer PDE (partial-differential-equation) solvers.} Transolver~\cite{transolver}
-introduced physics attention over learned slices; UPT~\cite{upt} and the anchored/branched
+introduced physics attention over learned slices; Universal Physics Transformers (UPT)~\cite{upt} and the anchored/branched
 variant~\cite{abupt} scale transformer surrogates to industrial CFD. Our core builds on the
 GeoTransolver implementation in NVIDIA PhysicsNeMo~\cite{physicsnemo}; our contribution is the
 surface-conditioning branch and the CHT-specific conditioning and training recipe.
 \textit{Geometry representations.} Signed-distance fields (SDFs) are data-efficient when an analytic shape
-exists, but none exists for arbitrary CAD (computer-aided-design geometry); following the surface branch of AB-UPT~\cite{abupt} we
+exists, but none exists for arbitrary CAD (computer-aided design geometry); following the surface branch of AB-UPT~\cite{abupt} we
 encode the boundary directly as a point cloud with normals. \textit{Spectral fidelity.} One-shot
 regression is spectrally biased; PDE-Refiner~\cite{pderefiner} restores high-frequency content, which
 we adopt as an optional head. \textit{Benchmarks.} SIMSHIFT~\cite{simshift} is a public benchmark for
@@ -112,7 +112,7 @@ is presented as surface points with outward unit normals. Nothing in the input a
 shape family.
 
 \section{Method}\label{sec:method}
-\subsection{KuberNet}
+\subsection{KuberNet}\label{sec:kubernet}
 A \textbf{surface encoder} maps the boundary point cloud with normals to permutation-invariant
 geometry tokens via a shallow self-attention stack. A \textbf{local cross-attention} module produces,
 for every query node, a geometry descriptor by attending over its $k{=}16$ nearest surface tokens, so
@@ -127,7 +127,7 @@ the one we report because it is the only one applicable to arbitrary CAD.
 
 Formally, write the surface as points $p_i\in\mathbb{R}^3$ with unit normals $n_i$ ($i{=}1{\dots}N_s$),
 the query cloud as $x_j$ ($j{=}1{\dots}N$), and the conditioning as $c\in\mathbb{R}^C$. The surface
-encoder embeds each element with a multi-layer perceptron (MLP) and applies an $L_s$-layer pre-norm Transformer with multi-head
+encoder embeds each element with a multi-layer perceptron (MLP) and applies an $L_s$-layer pre-norm transformer with multi-head
 self-attention (MHSA):
 \begin{equation}
 h_i^0=\mathrm{MLP}([p_i;n_i]),\ \ H\!\leftarrow\!H+\mathrm{MHSA}(\mathrm{LN}\,H),\ \ H\!\leftarrow\!H+\mathrm{FFN}(\mathrm{LN}\,H),
@@ -140,8 +140,8 @@ local geometry descriptor is
 \alpha_{ji}=\operatorname*{softmax}_{i\in\mathcal{N}_k(j)}\Big(\frac{q_j^\top(W_K z_i+b_{ji})}{\sqrt{d_h}}-\gamma\,|r_{ji}\!\cdot\!n_i|\Big),\qquad
 g_j=W_O\!\!\sum_{i\in\mathcal{N}_k(j)}\!\!\alpha_{ji}\,(W_V z_i+b_{ji}),
 \end{equation}
-(multi-head; heads omitted). The penalty $-\gamma\,|r_{ji}\!\cdot\!n_i|$ is \emph{Anisotropic
-Boundary-Layer} (ABL) attention: it down-weights the wall-normal component of the query-to-node
+(multi-head; heads omitted). The penalty $-\gamma\,|r_{ji}\!\cdot\!n_i|$ is \emph{anisotropic
+boundary-layer} (ABL) attention: it down-weights the wall-normal component of the query-to-node
 displacement (learned $\gamma=\mathrm{softplus}(\cdot)\ge 0$, with $\gamma=0$ recovering isotropic kNN),
 so a query inside a thin thermal boundary layer attends \emph{along} the wall rather than across it---the
 anisotropy that plain Euclidean distance ignores, and (Sec.~\ref{sec:ablation}) our largest single accuracy
@@ -192,8 +192,8 @@ sampling the noise yields an ensemble and hence an uncertainty estimate.
 
 \textit{How we use it.} The same network $f_\theta$ serves as both the signal predictor and the
 denoiser, conditioned on a refinement step $k\in\{0,\dots,K\}$ through a sinusoidal step embedding and an
-extra noised-field input channel. With a geometric noise schedule $\sigma_k=\sigma_{\min}^{\,k/K}$
-($\sigma_0=0$), each training sample draws $k\sim\mathrm{Uniform}\{0,\dots,K\}$: at $k{=}0$ the network
+extra noised-field input channel. With a geometric noise schedule $\sigma_k=\sigma_{\min}^{\,k/K}$ for $k\ge 1$
+($\sigma_0=0$, the clean step), each training sample draws $k\sim\mathrm{Uniform}\{0,\dots,K\}$: at $k{=}0$ the network
 regresses the field $y$ from the conditioning; at $k\ge1$ it is given the target corrupted by noise,
 $y+\sigma_k\epsilon$ ($\epsilon\sim\mathcal{N}(0,I)$), and regresses the noise $\epsilon$. At inference we
 take the initial one-shot prediction and apply $K$ refinement steps,
@@ -203,12 +203,12 @@ u\leftarrow f_\theta(\cdot,0);\quad k{=}1{\dots}K:\ \ u\leftarrow(u+\sigma_k\eps
 so each step subtracts the network's predicted noise and restores fine structure; drawing several noise
 seeds $\epsilon$ gives an ensemble whose spread is a calibrated uncertainty. The refiner is the
 framework's spectral-fidelity head: it recovers the sharp near-wall temperature gradients that a one-shot
-mean-squared-error fit over-smooths. The out-of-distribution accuracy in Sec.~V is reported from the
+mean-squared-error fit over-smooths. The out-of-distribution accuracy in Sec.~VI is reported from the
 one-shot model ($k{=}0$); the refiner is the mechanism we apply when near-wall gradient fidelity or
 calibrated uncertainty is the priority, and it seeds the Uncertainty pillar of the suite.
 
 \subsection{Data Engine}
-We generate CHT data with OpenFOAM's steady buoyant solver (\texttt{buoyantSimpleFoam}) over a single
+We generate CHT data with OpenFOAM's steady buoyant solver (\texttt{buoyantSimpleFoam})~\cite{weller} over a single
 fluid region, treating the solid as a heated wall (heatsinks) or heat-flux surface (cold plates). A
 parametric generator samples geometry and conditions; the geometry is meshed with \texttt{blockMesh}
 and \texttt{snappyHexMesh} plus prism layers, solved, and exported to 16{,}384 fluid nodes with the
@@ -242,7 +242,7 @@ No baseline uses \emph{unsupervised domain adaptation} (UDA)---training-time ada
 statistics to shrink the out-of-distribution gap---in our runs; the published baselines do, which
 is their best case. \textit{Training.} Adam~\cite{adam} at learning rate $10^{-3}$, batch size 4 cases
 (16{,}384 query nodes each), with a warmup--stable--decay schedule: a 5-epoch linear warmup, a stable
-phase held until the validation mean-nRMSE plateaus (patience 25 epochs), then a 30-epoch cosine decay
+phase held until the validation mean nRMSE plateaus (patience 25 epochs), then a 30-epoch cosine decay
 to $10^{-6}$; the best-validation checkpoint is kept. Targets are $z$-scored per channel and coordinates
 mapped to a per-case unit frame. The encoder uses $d_s{=}128$ (2 layers, 4 heads); the descriptor
 $d_g{=}64$ with $k{=}16$; the core is 256-wide, 12 layers, 8 heads, $M{=}64$ slices, ball-query radii
@@ -269,9 +269,9 @@ PointNet~\cite{pointnet} & \ding{51} & 17.43 & --- \\ \bottomrule
 \end{table}
 
 KuberNet attains \textbf{11.84\,K} temperature RMSE and \textbf{0.608} mean nRMSE (our primary selector) on
-the medium out-of-distribution split, beating the previous published best (UPT, 12.41\,K) with no domain
-adaptation. The gain is driven by its \emph{anisotropic boundary-layer} attention (Sec.~\ref{sec:method}):
-ablating it to isotropic kNN raises error to 12.14\,K / 0.671---a 9\% larger mean nRMSE at equal parameter
+the medium out-of-distribution split, beating the previously published best (UPT, 12.41\,K) with no domain
+adaptation. The gain is driven by its \emph{anisotropic boundary-layer} attention (Sec.~\ref{sec:kubernet}):
+ablating it to isotropic kNN raises error to 12.14\,K / 0.671---a 10\% larger mean nRMSE at equal parameter
 count (Sec.~\ref{sec:ablation}). The comparison to prior work is like-for-like: the SIMSHIFT baselines are
 also conditioned on geometry and operating scalars (they report temperature only, so mean nRMSE is dashed)
 and additionally use UDA, which we do not; these are single-run numbers, with multi-seed replicates in progress.
@@ -315,13 +315,13 @@ field, $\pm$1.33\,K RMSE agreement (peak 311.77 vs.\ 315.8\,K CFD), computed 445
 \label{fig:gtpred}
 \end{figure*}
 
-\subsection{Pretraining and Reduced Conditioning}
-The headline results (Tables~\ref{tab:lead}--\ref{tab:srctgt}) condition on the same twelve
+\subsection{Pretraining and Reduced Conditioning}\label{sec:pretrain}
+The headline results (Tables~\ref{tab:lead}--\ref{tab:srctgt}) condition on the same 12
 geometry/physics scalars that Transolver and the other baselines receive, for a like-for-like comparison.
 We now isolate two orthogonal levers that trade explicit scalars for learned priors: \emph{pretraining} on
 the self-generated corpus, and \emph{reduced conditioning}---dropping the geometry scalars and keeping only
 the wall temperature---which together point toward a geometry-and-physics foundation model. First, does
-pretraining help beyond the benchmark's own training set? A controlled A/B with the same model and SIMSHIFT
+pretraining help beyond the benchmark's own training set? We run a controlled A/B with the same model and SIMSHIFT
 fine-tuning, changing only the initialization (Table~\ref{tab:vod}). Pretraining helps materially at the
 easy shift ($-19\%$) and in-distribution ($-12\%$), modestly at medium, and is neutral at the hardest
 shift, which the corpus does not yet cover. The only changed ingredient is the corpus.
@@ -353,7 +353,7 @@ the test distribution.
 scalars alone raises medium-shift error from 12.14 to 12.94\,K (Table~\ref{tab:abl})---the model must now
 read fin count and gap from the point cloud rather than from a scalar---but corpus pretraining recovers most
 of that gap ($12.94\!\to\!12.38$\,K), so a model told almost nothing about the geometry beyond its shape
-nearly matches the fully-conditioned one. To make the little conditioning it does keep transferable across
+nearly matches the fully conditioned one. To make the little conditioning it does keep transferable across
 working fluids, we replace raw fluid properties with Buckingham-$\Pi$ dimensionless groups
 ($\mathrm{Re},\mathrm{Ra},\mathrm{Pe}$, appended in log-space; $\mathrm{Pr}$ is already a channel), so air,
 water, and oil map to a common similarity space rather than disjoint property ranges. Pretraining this
@@ -370,7 +370,7 @@ band and at the steepest peaks (Table~\ref{tab:stab}). Every ratio is at or belo
 distribution---the surrogate never produces a steeper-than-physical gradient---with an explosion
 fraction of exactly zero and no NaN/Inf. It is not merely over-smoothing: the in-distribution edge
 ratio ($0.97\approx1.0$) reproduces the true edge structure, while out of distribution it errs
-slightly conservative, the safe direction.
+slightly conservatively, the safe direction.
 
 \begin{table}[t]\renewcommand{\arraystretch}{1.2}
 \caption{Predicted/CFD Temperature-Gradient Ratio at Edges (1.0 = Faithful)}
@@ -385,7 +385,7 @@ NaN / Inf count & 0 & 0 \\ \bottomrule
 \end{table}
 
 \subsection{Speed and Data Fidelity}
-Inference is a single forward pass whose cost is independent of geometry, unlike CFD whose cost grows
+Inference is a single forward pass whose cost is independent of geometry, unlike CFD, whose cost grows
 with mesh size. Against measured OpenFOAM solve times (median 22 minutes, up to 117 for fine
 geometries), a sub-second forward pass is up to four orders of magnitude ($\approx$10,000$\times$)
 faster; we report the inference figure as an estimate pending exact per-GPU timing. On fidelity, three prism boundary
@@ -431,11 +431,11 @@ is strongest on air. On SIMSHIFT the OOD axis is fin count alone; leave-one-flui
 leave-one-shape-out remain future work. Cold plates are currently straight-channel, so the
 multi-geometry result shows device-class generality rather than topology extrapolation. On the
 averaged-nRMSE selector our temperature lead is bought with slightly higher velocity and pressure
-error, reported transparently. Inference latency is an estimate. The multi-geometry numbers are on our
+error, which we report transparently. Inference latency is an estimate. The multi-geometry numbers are on our
 own corpus and are not comparable to the public benchmark.
 
-\textit{Future work.} ABL attention (Sec.~\ref{sec:method}) and Buckingham-$\Pi$ conditioning with corpus
-pretraining (Sec.~\ref{sec:ablation}) are realized in the present model; the directions below remain, each
+\textit{Future work.} ABL attention (Sec.~\ref{sec:kubernet}) and Buckingham-$\Pi$ conditioning with corpus
+pretraining (Sec.~\ref{sec:pretrain}) are realized in the present model; the directions below remain, each
 stated with its rationale so results can be filled in as runs complete. \textbf{(i)~Leave-One-Fluid-Out
 (LOFO):} train on air and water and evaluate zero-shot on high-viscosity oil ($\mathrm{Pr}\approx292$), a
 stronger out-of-distribution axis than fin count. \textbf{(ii)~Interface flux-balanced loss:} a soft residual
