@@ -111,8 +111,34 @@ def heatsink_sdf_grad(coords_phys, cond, eps=1e-4):
     return sdf, (g / np.where(n > 1e-9, n, 1.0)).astype(np.float32)
 
 
+def _char_len(coords):
+    """Characteristic length (m): equivalent cube side of the physical bounding box."""
+    scale = _norm_frame(np.asarray(coords, np.float64))[1]
+    return float(np.prod(scale) ** (1.0 / 3.0)) + 1e-9
+
+
+def _pi_groups(cond, L):
+    """Buckingham-Pi dimensionless similarity groups from operating conditions + characteristic
+    length L. Returns log1p([Re, Ra, Pe]) — the groups that (with Pr, already conditioned) govern
+    forced + buoyant convective heat transfer, so cross-fluid transfer is framed by DYNAMIC SIMILARITY
+    rather than raw (rho, mu, Cp). Approximations: ideal-gas expansion beta~1/T_amb, and a flux-BC
+    temperature scale dT ~ q'' L / k_f for cold plates (solidTemp==0)."""
+    g, eps = 9.81, 1e-30
+    rho = float(cond.get("rho", 1.0)); mu = max(float(cond.get("mu", 1.0)), eps)
+    Cp = float(cond.get("Cp", 1.0)); Pr = max(float(cond.get("Pr", 1.0)), eps)
+    u = float(cond.get("u_in", 0.0)); Tamb = max(float(cond.get("envTemp", 300.0)), 1.0)
+    nu = mu / max(rho, eps); alpha = nu / Pr; kf = mu * Cp / Pr
+    solidT = float(cond.get("solidTemp", 0.0)); q = float(cond.get("heatFlux", 0.0))
+    dT = abs(solidT - Tamb) if solidT > 0 else q * L / max(kf, eps)
+    beta = 1.0 / Tamb
+    Re = rho * u * L / mu
+    Ra = g * beta * dT * L ** 3 / max(nu * alpha, eps)
+    Pe = Re * Pr
+    return np.log1p(np.array([Re, Ra, Pe], np.float64))
+
+
 def load_dataset(data_dir, splits_path, difficulty, cond_keys=None, geom_mode="sdf",
-                 n_surf=2048, drop_geom_scalars=False, extent_feats=False):
+                 n_surf=2048, drop_geom_scalars=False, extent_feats=False, pi_features=False):
     """Return dict of tensors per split + normalization stats.
 
     geom_mode:
@@ -173,6 +199,15 @@ def load_dataset(data_dir, splits_path, difficulty, cond_keys=None, geom_mode="s
     else:
         ext_mean = ext_std = None
 
+    # Buckingham-Pi dimensionless groups (Re, Ra, Pe), log-scaled + z-scored over src.train.
+    # Frames cross-fluid transfer by dynamic similarity (a new fluid = new point in Re/Ra/Pr space)
+    # instead of raw (rho, mu, Cp) that differ by orders of magnitude between air/water/oil.
+    if pi_features:
+        pi_mat = np.array([_pi_groups(all_cond[s], _char_len(raw[s]["coords"])) for s in src_train], np.float64)
+        pi_mean, pi_std = pi_mat.mean(0), pi_mat.std(0) + 1e-9
+    else:
+        pi_mean = pi_std = None
+
     # target normalization: per-channel z-score over src.train
     stack = np.concatenate([np.concatenate([raw[s]["U"], raw[s]["T"], raw[s]["p_rgh"]], 1)
                             for s in src_train], axis=0)
@@ -222,6 +257,9 @@ def load_dataset(data_dir, splits_path, difficulty, cond_keys=None, geom_mode="s
             if extent_feats:                                           # + physical bbox extents (aspect/scale)
                 extn = ((np.log(scale + 1e-12) - ext_mean) / ext_std).astype(np.float32)
                 fnode = np.concatenate([fnode, np.broadcast_to(extn, (N, 3)).astype(np.float32)], axis=1)
+            if pi_features:                                            # + Buckingham-Pi groups (Re, Ra, Pe)
+                pin = ((_pi_groups(all_cond[sid], _char_len(d["coords"])) - pi_mean) / pi_std).astype(np.float32)
+                fnode = np.concatenate([fnode, np.broadcast_to(pin, (N, 3)).astype(np.float32)], axis=1)
             if use_sdf:
                 sdfn = ((_sdf_of(sid) - sdf_mean) / sdf_std)[:, None].astype(np.float32)
                 fnode = np.concatenate([fnode, sdfn], axis=1)
@@ -250,12 +288,13 @@ def load_dataset(data_dir, splits_path, difficulty, cond_keys=None, geom_mode="s
     data = {k: build(splits[dom][part]) for k, (dom, part) in {
         "src_train": ("src", "train"), "src_val": ("src", "val"),
         "src_test": ("src", "test"), "tgt_test": ("tgt", "test")}.items()}
-    feat_dim = len(cond_keys) + (3 if extent_feats else 0) + (1 if use_sdf else 0) + (4 if use_dsdf else 0)
+    feat_dim = len(cond_keys) + (3 if extent_feats else 0) + (3 if pi_features else 0) + (1 if use_sdf else 0) + (4 if use_dsdf else 0)
     meta = {"cond_keys": cond_keys, "cond_dim": len(cond_keys), "ymean": ymean, "ystd": ystd,
             "use_sdf": use_sdf, "geom_mode": geom_mode, "n_surf": n_surf,
             "sdf_mean": sdf_mean, "sdf_std": sdf_std, "feat_dim": feat_dim,
             "cmean": cmean, "cstd": cstd, "extent_feats": extent_feats,
             "ext_mean": ext_mean, "ext_std": ext_std,   # exposed for the demo Engine (custom-geometry inputs)
+            "pi_features": pi_features, "pi_mean": pi_mean, "pi_std": pi_std,   # Buckingham-Pi groups
             "channels": ["U_x", "U_y", "U_z", "T", "p_rgh"], "N": data["src_train"]["coords"].shape[1]}
     return data, meta
 
@@ -501,7 +540,8 @@ def run_eval_only(a, dev, GeoTransolver):
           f"no_local={no_local} cond_keys={cond_keys}", flush=True)
     data, meta = load_dataset(a.data, a.splits, a.difficulty, cond_keys=cond_keys,
                               geom_mode=geom_mode, n_surf=n_surf,
-                              extent_feats=cfg.get("extent_feats", False))
+                              extent_feats=cfg.get("extent_feats", False),
+                              pi_features=cfg.get("pi_features", False))
     ymean, ystd, channels = meta["ymean"], meta["ystd"], meta["channels"]
     model, is_refiner = _build_model(geom_mode, meta["cond_dim"], meta["feat_dim"], _dims_from(cfg, a), dev, GeoTransolver)
     model.load_state_dict(ck["model"])
@@ -549,7 +589,7 @@ def run(a):
     ckeys = a.cond_keys.split(",") if getattr(a, "cond_keys", None) else None
     data, meta = load_dataset(a.data, a.splits, a.difficulty, cond_keys=ckeys, geom_mode=geom_mode,
                               n_surf=a.n_surf, drop_geom_scalars=a.drop_geom_scalars,
-                              extent_feats=a.extent_feats)
+                              extent_feats=a.extent_feats, pi_features=a.pi_features)
     ymean, ystd, channels = meta["ymean"], meta["ystd"], meta["channels"]
     print(f"[data] N={meta['N']} cond_dim={meta['cond_dim']} feat_dim={meta['feat_dim']} "
           f"cond_keys={meta['cond_keys']} geom_mode={geom_mode} n_surf={meta['n_surf']}", flush=True)
@@ -708,6 +748,9 @@ if __name__ == "__main__":
     p.add_argument("--extent_feats", action="store_true",
                    help="append per-case physical bbox extents (log, z-scored) to conditioning — "
                         "restores aspect/scale erased by per-axis framing (multi-geometry: thin cold plates)")
+    p.add_argument("--pi_features", action="store_true",
+                   help="append Buckingham-Pi dimensionless groups (Re, Ra, Pe; log, z-scored) to "
+                        "conditioning — frames cross-fluid transfer (air->water/oil) by dynamic similarity")
     p.add_argument("--resume", action="store_true",
                    help="crash recovery: if <out>/resume.pt exists, continue mid-run (model+opt+WSD+epoch). "
                         "Saved every epoch; combine with --init_from for first-launch warm start.")
