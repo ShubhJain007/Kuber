@@ -416,34 +416,35 @@ layers recover the near-wall hot spot to within 0.1&thinsp;K of a fine mesh (378
 at &asymp;2.7&times; fewer cells.</p>
 
 <h3>F.&ensp;Ablations</h3>
-<p>Table&nbsp;VII isolates the main design choices on the SIMSHIFT medium split. <b>Anisotropic
-Boundary-Layer attention is KuberNet's largest single design win</b>: ablating it to isotropic kNN raises
-the out-of-distribution temperature from 11.84 to 12.14&thinsp;K (mean nRMSE 0.608&rarr;0.671) at equal
-parameter count. Adding the PDE-Refiner head is fine in-distribution (4.15&thinsp;K) but degrades OOD to
-16.52&thinsp;K &mdash; its iterative refinement amplifies error under distribution shift &mdash; which is
-why we report the one-shot model. The surface encoder gives the best
-temperature and, unlike the analytic SDF, applies to arbitrary CAD; the SDF variant is data-efficient (lower averaged
-nRMSE, 0.593, and velocity, 0.038&thinsp;m/s) but presupposes an analytic shape. Full 12-scalar physics conditioning
-improves temperature by 0.8&thinsp;K over wall-temperature-only, confirming the fluid-property and boundary-condition
-scalars carry signal. Corpus pretraining lowers the reduced-conditioning model from 12.94 to 12.38&thinsp;K
-(Sec.&nbsp;VI-C); both the full-conditioning and the pretrained models pass UPT's 12.41&thinsp;K. Separately, feeding
-the surface as a per-node descriptor (used here) generalized better than AB-UPT-style per-block cross-attention on the
-raw surface cloud at this data scale.</p>
+<p>Table&nbsp;VII isolates the main design choices on the SIMSHIFT medium split. <b>Every row changes exactly
+one factor and holds the rest of the 14.3M-parameter backbone fixed</b>, so the gap between the <i>base</i>
+column (the reference that ablation was measured against) and the <i>result</i> column is that factor's
+isolated effect. The attention and output-head rows are measured against the full KuberNet reference
+(11.84&thinsp;K); the geometry, conditioning, and pretraining rows &mdash; established before ABL was added
+&mdash; are measured against the isotropic-kNN configuration (12.14&thinsp;K, i.e. the &ldquo;remove ABL&rdquo;
+row), and pretraining against its from-scratch reduced-conditioning baseline (12.94&thinsp;K). Reading the
+effects: <b>anisotropic boundary-layer attention is KuberNet's largest single design win</b> &mdash; removing
+it costs 0.30&thinsp;K (11.84&rarr;12.14, mean nRMSE 0.608&rarr;0.671) at equal parameter count. Adding a
+PDE-Refiner head is fine in-distribution (4.15&thinsp;K) but degrades OOD to 16.52&thinsp;K &mdash; its
+iterative refinement amplifies error under distribution shift &mdash; which is why we report the one-shot
+model. The surface encoder, unlike the analytic SDF, applies to arbitrary CAD; the SDF variant is
+data-efficient (lower averaged nRMSE, 0.593, and velocity, 0.038&thinsp;m/s) but presupposes an analytic
+shape. Full 12-scalar conditioning improves temperature by 0.8&thinsp;K over wall-temperature-only, confirming
+the fluid-property and boundary-condition scalars carry signal, and corpus pretraining recovers 0.56&thinsp;K
+of that reduced setting (12.94&rarr;12.38&thinsp;K, Sec.&nbsp;VI-C). Both the full-conditioning and pretrained
+models pass UPT's 12.41&thinsp;K. Separately, feeding the surface as a per-node descriptor (used here)
+generalized better than AB-UPT-style per-block cross-attention on the raw surface cloud at this data scale.</p>
 
 <table>
-  <caption><span class="tnum">Table VII</span><span class="ttl">Ablations on SIMSHIFT Medium (OOD). Temperature RMSE (K); lower is better.</span></caption>
-  <thead><tr><th class="l">Factor</th><th class="l">Setting</th><th>Temp&nbsp;RMSE&nbsp;(K)</th></tr></thead>
+  <caption><span class="tnum">Table VII</span><span class="ttl">KuberNet ablations on SIMSHIFT Medium (OOD). Each row changes one factor from a fixed reference; &ldquo;base&rdquo; is that reference's error, &ldquo;result&rdquo; the ablated model's. Temperature RMSE (K), lower is better.</span></caption>
+  <thead><tr><th class="l">Factor</th><th class="l">One change from the reference</th><th>base</th><th>result</th></tr></thead>
   <tbody>
-    <tr><td class="l">attention</td><td class="l">KuberNet (ABL)</td><td><b>11.84</b></td></tr>
-    <tr><td class="l"></td><td class="l">w/o ABL (isotropic kNN)</td><td>12.14</td></tr>
-    <tr><td class="l">output head</td><td class="l">one-shot (ours)</td><td><b>11.84</b></td></tr>
-    <tr><td class="l"></td><td class="l">+ PDE-Refiner</td><td>16.52</td></tr>
-    <tr><td class="l">geometry input</td><td class="l">surface encoder (ours)</td><td>12.14</td></tr>
-    <tr><td class="l"></td><td class="l">analytic SDF</td><td>13.07</td></tr>
-    <tr><td class="l">conditioning</td><td class="l">full, 12 scalars (ours)</td><td><b>12.14</b></td></tr>
-    <tr><td class="l"></td><td class="l">reduced, wall-<i>T</i> only</td><td>12.94</td></tr>
-    <tr><td class="l">pretraining</td><td class="l">reduced, from scratch</td><td>12.94</td></tr>
-    <tr><td class="l">(reduced cond.)</td><td class="l">reduced, corpus-pretrained</td><td><b>12.38</b></td></tr>
+    <tr><td class="l">reference</td><td class="l"><b>KuberNet</b>: ABL &middot; surface encoder &middot; 12 scalars &middot; one-shot head</td><td>&mdash;</td><td><b>11.84</b></td></tr>
+    <tr><td class="l">attention</td><td class="l">remove ABL &rarr; isotropic kNN</td><td>11.84</td><td>12.14</td></tr>
+    <tr><td class="l">output head</td><td class="l">add PDE-Refiner</td><td>11.84</td><td>16.52</td></tr>
+    <tr><td class="l">geometry input</td><td class="l">surface encoder &rarr; analytic SDF</td><td>12.14</td><td>13.07</td></tr>
+    <tr><td class="l">conditioning</td><td class="l">12 scalars &rarr; wall-<i>T</i> only</td><td>12.14</td><td>12.94</td></tr>
+    <tr><td class="l">pretraining</td><td class="l">add corpus pretrain (wall-<i>T</i> cond.)</td><td>12.94</td><td><b>12.38</b></td></tr>
   </tbody>
 </table>
 

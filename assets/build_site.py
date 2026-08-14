@@ -205,7 +205,7 @@ CONTENT = """
 CONTENT = (CONTENT
            .replace("__CMPHS__", '<img src="' + png_uri("heat-sink-comparison.png") + '" alt="Heatsink — Kuber prediction vs CFD ground truth">')
            .replace("__CMPCP__", '<img src="' + png_uri("cold-plate-comparison.png") + '" alt="Cold plate — Kuber prediction vs CFD ground truth">')
-           .replace("__ARCH__", '<img src="' + png_uri("architecture.png") + '" alt="SurfaceGeoTransolver architecture">')
+           .replace("__ARCH__", '<img src="' + png_uri("architecture.png") + '" alt="KuberNet architecture">')
            .replace("__LEADERBOARD__", svg_inline("fig_leaderboard.svg"))
            .replace("__INDIST__", svg_inline("fig_indist_vs_ood.svg"))
            .replace("__STABILITY__", svg_inline("fig_stability.svg"))

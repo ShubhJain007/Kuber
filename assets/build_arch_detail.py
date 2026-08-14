@@ -49,12 +49,15 @@ body{background:#fff;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helve
 .lay.head small{color:#C3D6EA}
 .io{font-size:11.5px;color:#5B6672;text-align:center;margin-top:3px}
 .io b{color:#1F4E79}
+.lay.abl{border-color:#2E9E8A;background:#E8F7F3;font-weight:700;color:#0E5A4E}
+.lay.abl small{color:#2E7D6E;font-weight:650}
+.xn.xnab{background:#2E9E8A}
 """
 
 HTML = """<meta charset="utf-8"><style>__CSS__</style>
 <div class="fig">
-  <div class="hd"><h1>SurfaceGeoTransolver</h1>
-  <p>Geometry-general conjugate-heat-transfer surrogate &mdash; internal layers shown</p></div>
+  <div class="hd"><h1>KuberNet</h1>
+  <p>Geometry-general conjugate-heat-transfer surrogate with anisotropic boundary-layer (ABL) attention &mdash; internal layers shown</p></div>
   <div class="row">
 
     <div class="card">
@@ -82,9 +85,10 @@ HTML = """<meta charset="utf-8"><style>__CSS__</style>
     __ARR__
 
     <div class="mod">
-      <div class="mh"><b>Local<br>cross-attention</b></div>
+      <div class="mh"><b>Local ABL<br>cross-attention</b><span class="xn xnab">anisotropic</span></div>
       <div class="lay">kNN gather <small>k = 16 surface tokens</small></div>
       <div class="lay attn">Cross-Attention <small>4 heads &middot; Q: node, KV: tokens</small></div>
+      <div class="lay abl">Boundary-layer penalty <small>&minus;&gamma;&thinsp;|(x&minus;p)&middot;n&#770;|</small></div>
       <div class="io">descriptor <b>[N&times;64]</b> &nbsp;&oplus;&nbsp; conditioning</div>
     </div>
 
