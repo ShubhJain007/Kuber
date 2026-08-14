@@ -413,15 +413,28 @@ averaged-nRMSE selector our temperature lead is bought with slightly higher velo
 error, reported transparently. Inference latency is an estimate. The multi-geometry numbers are on our
 own corpus and are not comparable to the public benchmark.</p>
 
-<p><i>Future work.</i> The most direct gains are scale &mdash; a larger surface-conditioned core (more
-physics slices, depth, and hidden width) and a substantially larger, less air-dominated corpus, both of
-which our value-of-data ablation suggests still pay off. On architecture, hierarchical multi-resolution
-surface tokens and per-block geometry cross-attention should sharpen near-wall fields, and the
-PDE-Refiner head extends naturally to calibrated per-node uncertainty. On coverage we are adding
-cold-plate topologies (serpentine, pin-fin, parallel micro-channel), further device classes, and harder
-leave-one-fluid/shape-out splits. Toward production, the surrogate exports to ONNX/TensorRT for batched
-multi-geometry inference and drops into an agentic propose&ndash;predict&ndash;score&ndash;refine loop
-for geometry optimization, with CAD connectors (STEP/STL/mesh) for direct ingest.</p>
+<p><i>Future work.</i> Several directions follow directly from the analysis above; we state each with
+its rationale so results can be filled in as runs complete. <b>(i)&ensp;Anisotropic Boundary-Layer
+Attention (ABL):</b> replace the isotropic <i>k</i>-NN in the surface cross-attention with a
+wall-normal-penalized score,
+<i>&alpha;<sub>ji</sub></i>&thinsp;&larr;&thinsp;softmax(&hellip;&thinsp;&minus;&thinsp;<i>&gamma;</i>&thinsp;|(<i>x<sub>j</sub></i>&thinsp;&minus;&thinsp;<i>p<sub>i</sub></i>)&middot;<i>n<sub>i</sub></i>|),
+so boundary-layer queries attend <i>along</i> the wall rather than across it &mdash; targeting the
+near-wall temperature error that dominates our residual. <b>(ii)&ensp;Buckingham-&Pi; conditioning:</b>
+condition on the dimensionless groups (Re,&thinsp;Ra,&thinsp;Pe; Pr is already included) rather than raw
+fluid properties, so a new fluid is a point in similarity space, enabling cross-fluid transfer.
+<b>(iii)&ensp;Leave-One-Fluid-Out (LOFO):</b> train on air and water and evaluate zero-shot on
+high-viscosity oil (Pr&thinsp;&asymp;&thinsp;292), a stronger out-of-distribution axis than fin count.
+<b>(iv)&ensp;Interface flux-balanced loss:</b> a soft residual enforcing conjugate energy conservation,
+<i>k<sub>s</sub></i>(&nabla;<i>T<sub>s</sub></i>&middot;<i>n</i>)&thinsp;=&thinsp;<i>k<sub>f</sub></i>(&nabla;<i>T<sub>f</sub></i>&middot;<i>n</i>),
+at solid&ndash;fluid interfaces; this requires two-region (conjugate) training data that our current
+single-region corpus does not provide, so it is paired with a data-engine extension.
+<b>(v)&ensp;Physics-masked pretraining:</b> a self-supervised objective reconstructing masked spatial
+regions and physical channels (e.g. predicting <i>T</i> from <i>U</i> and geometry), forcing the backbone
+to internalize conservation and improving data efficiency. Alongside these, scaling model and corpus (the
+value-of-data trend favors both), hierarchical surface tokens, calibrated uncertainty from the refinement
+head, further cold-plate topologies, and ONNX/TensorRT deployment within an agentic
+propose&ndash;predict&ndash;score&ndash;refine optimization loop with CAD connectors (STEP/STL/mesh)
+remain on the roadmap.</p>
 
 <h2>VIII.&ensp;Conclusion</h2>
 <p>Kuber packages the full stack needed to build a CHT surrogate &mdash; a reproducible data engine, a
