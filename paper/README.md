@@ -1,6 +1,6 @@
 # Paper
 
-**Kuber: Geometry-General Neural Surrogates for Conjugate Heat Transfer** — formatted as an
+**KuberNet: A Geometry-General Surrogate for Conjugate Heat Transfer with Boundary-Layer Attention** — formatted as an
 **IEEE conference (ICRA) paper** (two-column, Times, `IEEEtran`).
 
 | file | what it is |
@@ -29,7 +29,7 @@ chromium --headless --no-pdf-header-footer --print-to-pdf=kuber.pdf paper/kuber.
 
 ```bibtex
 @techreport{kuber2026,
-  title  = {Kuber: Geometry-General Neural Surrogates for Conjugate Heat Transfer},
+  title  = {KuberNet: A Geometry-General Surrogate for Conjugate Heat Transfer with Boundary-Layer Attention},
   author = {Jain, Shubh},
   year   = {2026},
   institution = {Kuber.ai},
